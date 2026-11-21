@@ -449,6 +449,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var root=document.getElementById('tab-today'); root.textContent='';
     var b=bird(); if(!b){ renderFirst(); return; }
     root.append(banner('Ratings below are for'));
+    root.append(flightCard(b));
     root.append(locCard());
     if(note) root.append(h('div',{class:'warn',role:'status'},note));
     if(hours){
@@ -456,7 +457,7 @@ if(typeof module!=='undefined') module.exports=FP;
       root.append(housingCard());
       root.append(forecastCard(b));
     }
-    root.append(flightCard(b)); root.append(manualCard(b));
+    root.append(manualCard(b));
   }
   function locCard(){
     var name=h('input',{id:'locname',value:S.loc.name}), lat=h('input',{id:'lat',type:'number',step:'0.01',value:S.loc.lat}), lon=h('input',{id:'lon',type:'number',step:'0.01',value:S.loc.lon});
