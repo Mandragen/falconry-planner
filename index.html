@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Stoop</title>
+<style>
+/* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
+   red/yellow/green reserved for weather status, a separate color per bird. */
+:root{
+  --paper:#f4efe6; --card:#fffdf8; --ink:#26201a; --mute:#6b6258; --line:#ddd3c4;
+  --accent:#8a5a2b; --accent-ink:#ffffff;
+  --go:#1f7a4d; --caut:#8f5d0d; --no:#b3392f; --on:#ffffff; --dk:#8a8178; --dkink:#ffffff;
+  --display:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#151210; --card:#211c19; --ink:#f3ece2; --mute:#b4a99b; --line:#3a322c;
+    --accent:#d4a96a; --accent-ink:#1a140d;
+    --go:#4fc487; --caut:#f0c63c; --no:#f27266; --on:#0d0b0a; --dk:#2e2823; --dkink:#b4a99b;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151210; --card:#211c19; --ink:#f3ece2; --mute:#b4a99b; --line:#3a322c;
+  --accent:#d4a96a; --accent-ink:#1a140d;
+  --go:#4fc487; --caut:#f0c63c; --no:#f27266; --on:#0d0b0a; --dk:#2e2823; --dkink:#b4a99b;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5}
+.wrap{max-width:720px;margin:0 auto;padding:14px 16px 56px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+h1{font-family:var(--display);font-size:1.9rem;margin:0;letter-spacing:.02em}
+h2{font-family:var(--display);font-size:1.2rem;margin:0 0 8px;text-wrap:balance}
+h3{font-size:.95rem;margin:0 0 4px}
+.sub{color:var(--mute);margin:0 0 10px;font-size:.88rem}
+.tabs{display:flex;gap:18px;border-bottom:1px solid var(--line);margin:6px 0 14px;overflow-x:auto}
+.tabs button{background:none;border:0;border-bottom:3px solid transparent;color:var(--mute);font:inherit;font-weight:600;padding:8px 2px;cursor:pointer;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:0 0 14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:end}
+.field{display:flex;flex-direction:column;gap:4px;flex:1 1 120px;min-width:0}
+label{font-size:.82rem;color:var(--mute);font-weight:600}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:9px;width:100%}
+textarea{min-height:90px;font-family:ui-monospace,Consolas,monospace;font-size:.82rem}
+.btn{font:inherit;font-weight:700;padding:9px 14px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);cursor:pointer}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.small{padding:5px 10px;font-size:.85rem}
+.themebtn{font-size:.8rem;padding:5px 10px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.chip{display:flex;gap:8px;align-items:center;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:99px;padding:6px 12px;font:inherit;font-weight:600;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--bc);background:var(--card);box-shadow:0 0 0 1px var(--bc)}
+.dot{display:inline-block;width:14px;height:14px;border-radius:50%;background:var(--bc);flex:none}
+.banner{border-left:10px solid var(--bc);background:var(--card);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);border-radius:10px;padding:10px 14px;margin:0 0 14px}
+.banner b{font-size:1.02rem}
+.glance{width:100%;border-collapse:collapse;margin-top:8px;font-size:.9rem}
+.glance td,.glance th{padding:6px 4px;border-top:1px solid var(--line);text-align:left;vertical-align:middle}
+.glance th{font-size:.75rem;color:var(--mute);border-top:0}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-weight:700;font-size:.78rem;background:var(--dk);color:var(--dkink)}
+.pill.GO{background:var(--go);color:var(--on)} .pill.CAUTION{background:var(--caut);color:var(--on)} .pill.NOGO{background:var(--no);color:var(--on)}
+.alert{border-left:10px solid var(--dk);}
+.alert.L2{border-left-color:var(--no)} .alert.L1{border-left-color:var(--caut)} .alert.L0{border-left-color:var(--go)}
+.alert li{margin:3px 0}
+.hero{border-left:10px solid var(--dk)}
+.hero.GO{border-left-color:var(--go)} .hero.CAUTION{border-left-color:var(--caut)} .hero.NOGO{border-left-color:var(--no)}
+.big{font-family:var(--display);font-size:1.9rem;margin:0;font-weight:700}
+.big.GO{color:var(--go)} .big.CAUTION{color:var(--caut)} .big.NOGO{color:var(--no)}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}
+@media(min-width:560px){.grid{grid-template-columns:repeat(8,1fr)}}
+.cell{border:0;border-radius:8px;padding:7px 2px;text-align:center;font:inherit;font-size:.78rem;line-height:1.2;cursor:pointer;color:var(--dkink);background:var(--dk)}
+.cell b{display:block;font-size:.95rem}
+.cell.GO{background:var(--go);color:var(--on)} .cell.CAUTION{background:var(--caut);color:var(--on)} .cell.NOGO{background:var(--no);color:var(--on)}
+.cell[aria-pressed="true"]{outline:3px solid var(--ink);outline-offset:1px}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--mute)}
+.why{margin:10px 0 0;padding-left:20px;font-size:.92rem}
+.why li{margin:3px 0}
+.item{display:flex;gap:10px;justify-content:space-between;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-child{border-top:0}
+.item .t{font-weight:700}
+.item .m{color:var(--mute);font-size:.88rem}
+.soon{color:var(--caut);font-weight:700}
+.past{opacity:.55}
+.note{font-size:.84rem;color:var(--mute)}
+.warn{border:1px solid var(--caut);border-radius:8px;padding:8px 10px;font-size:.88rem;margin:0 0 14px}
+ul.reasons{margin:6px 0 0;padding-left:20px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin:8px 0}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:8px}
+.stat b{display:block;font-size:1.15rem}
+.stat span{font-size:.75rem;color:var(--mute)}
+details summary{cursor:pointer;font-weight:600}
+a{color:var(--accent)}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw button{width:30px;height:30px;border-radius:50%;border:3px solid var(--line);background:var(--bc);cursor:pointer}
+.sw button[aria-pressed="true"]{border-color:var(--ink)}
+svg.chart text{fill:var(--mute);font-size:9px}
+[hidden]{display:none!important}
+@media (prefers-reduced-motion:no-preference){.cell,.btn,.chip{transition:transform .08s}.cell:active,.btn:active,.chip:active{transform:scale(.97)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Stoop</h1>
+      <p class="sub">Falconry field planner. Working name.</p>
+    </div>
+    <button class="btn ghost themebtn" id="themebtn" type="button">Light mode</button>
+  </div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div id="birdbar"></div>
+  <section id="tab-today" role="tabpanel"></section>
+  <section id="tab-log" role="tabpanel" hidden></section>
+  <section id="tab-cal" role="tabpanel" hidden></section>
+  <section id="tab-birds" role="tabpanel" hidden></section>
+  <p class="note" style="margin-top:24px">Starter limits are rough guesses, not husbandry advice. Set them for your own birds. You know your birds; this only flags the weather and keeps your records.</p>
+</div>
+
+<script id="logic">
+/* Pure logic: no DOM. Tested in Node. */
+var FP = (function(){
+  function rate(v, lim, margin, dir){
+    if(dir==='max'){ if(v>lim) return 2; if(v>lim-margin) return 1; return 0; }
+    if(v<lim) return 2; if(v<lim+margin) return 1; return 0;
+  }
+  function scoreHour(h, p){
+    var reasons=[], worst=0;
+    function add(lvl, txt){ if(lvl>0){ reasons.push((lvl===2?'Over limit: ':'Close to limit: ')+txt); if(lvl>worst) worst=lvl; } }
+    if(h.day===false) return {level:3,key:'DARK',label:'Dark',reasons:['After dark']};
+    add(rate(h.temp,p.minTemp,5,'min'),'temperature '+Math.round(h.temp)+'F, minimum '+p.minTemp+'F');
+    add(rate(h.temp,p.maxTemp,5,'max'),'temperature '+Math.round(h.temp)+'F, maximum '+p.maxTemp+'F');
+    add(rate(h.wind,p.maxWind,3,'max'),'wind '+Math.round(h.wind)+' mph, maximum '+p.maxWind);
+    add(rate(h.gust,p.maxGust,4,'max'),'gusts '+Math.round(h.gust)+' mph, maximum '+p.maxGust);
+    add(rate(h.pop,p.maxPop,10,'max'),'rain chance '+Math.round(h.pop)+'%, maximum '+p.maxPop+'%');
+    if(h.precip>=0.03) add(2,'rain falling, '+h.precip.toFixed(2)+' in/hr');
+    else if(h.precip>=0.01) add(1,'light rain, '+h.precip.toFixed(2)+' in/hr');
+    var keys=['GO','CAUTION','NOGO'], labels=['Go','Caution','No-go'];
+    return {level:worst,key:keys[worst],label:labels[worst],reasons:reasons};
+  }
+  function hourLabel(t){ var H=+t.slice(11,13); return (H%12||12)+(H<12?'a':'p'); }
+  function endLabel(t){ var e=(+t.slice(11,13)+1)%24; return (e%12||12)+(e<12?'a':'p'); }
+  function dayLabel(t){
+    var d=new Date(+t.slice(0,4),+t.slice(5,7)-1,+t.slice(8,10),+t.slice(11,13));
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][d.getDay()]+' '+hourLabel(t);
+  }
+  function bestWindow(scored, strict){
+    var best=null, cur=null, max=strict?0:1;
+    for(var i=0;i<scored.length;i++){
+      var ok=scored[i].s.level<=max;
+      if(ok){ if(!cur) cur={start:i,end:i}; else cur.end=i; if(!best||(cur.end-cur.start)>(best.end-best.start)) best={start:cur.start,end:cur.end}; }
+      else cur=null;
+    }
+    return best;
+  }
+  function pickWindow(scored){
+    var w=bestWindow(scored,true), strict=true;
+    if(!w){ w=bestWindow(scored,false); strict=false; }
+    return w?{start:w.start,end:w.end,strict:strict}:null;
+  }
+  function edgeWhy(r){
+    if(r.s.key==='DARK') return 'it is after dark';
+    var why=r.s.reasons.length?r.s.reasons[0].replace(/^[^:]+: /,''):'';
+    return hourLabelSafe(r)+' is '+r.s.label.toLowerCase()+(why?' ('+why+')':'');
+  }
+  function hourLabelSafe(r){ return hourLabel(r.x.time); }
+  function explainWindow(scored, w, p){
+    var hrs=scored.slice(w.start,w.end+1).map(function(r){return r.x;});
+    function rg(k){ var v=hrs.map(function(x){return x[k];}); return [Math.min.apply(null,v),Math.max.apply(null,v)]; }
+    var t=rg('temp'), wi=rg('wind'), g=rg('gust'), pp=rg('pop'), lines=[];
+    lines.push(w.strict?'It is the longest daylight stretch where every reading stays inside the limits.':'No hour is fully clear, so this is the longest daylight stretch with nothing over a limit.');
+    lines.push('During it: '+Math.round(t[0])+' to '+Math.round(t[1])+'F, wind up to '+Math.round(wi[1])+' mph, gusts up to '+Math.round(g[1])+' mph, rain chance up to '+Math.round(pp[1])+'%.');
+    var c=[['wind',wi[1],p.maxWind,'mph'],['gusts',g[1],p.maxGust,'mph'],['rain chance',pp[1],p.maxPop,'%']], tight=null;
+    c.forEach(function(x){ var m=(x[2]-x[1])/x[2]; if(!tight||m<tight.m) tight={m:m,c:x}; });
+    lines.push('Closest to a limit: '+tight.c[0]+', '+Math.round(tight.c[1])+' of '+tight.c[2]+' '+tight.c[3]+'.');
+    var lowGap=t[0]-p.minTemp, highGap=p.maxTemp-t[1], tg=Math.min(lowGap,highGap);
+    if(tg<=10) lines.push('Temperature is within '+Math.round(tg)+'F of the '+(lowGap<highGap?p.minTemp+'F minimum':p.maxTemp+'F maximum')+'.');
+    var before=scored[w.start-1], after=scored[w.end+1];
+    lines.push(before?'It starts here because '+edgeWhy(before)+'.':'It starts at the beginning of the forecast.');
+    lines.push(after?'It ends because '+edgeWhy(after)+'.':'It runs to the end of the forecast.');
+    return lines;
+  }
+  function parseForecast(j){
+    var H=j.hourly, off=j.utc_offset_seconds||0, out=[];
+    for(var i=0;i<H.time.length;i++){
+      out.push({time:H.time[i],temp:H.temperature_2m[i],feels:H.apparent_temperature?H.apparent_temperature[i]:H.temperature_2m[i],
+        wind:H.wind_speed_10m[i],gust:H.wind_gusts_10m[i],pop:H.precipitation_probability[i]||0,precip:H.precipitation[i]||0,
+        code:H.weather_code?H.weather_code[i]:0,day:H.is_day[i]===1});
+    }
+    var nowLoc=new Date(Date.now()+off*1000).toISOString().slice(0,13), start=0;
+    for(var k=0;k<out.length;k++){ if(out[k].time.slice(0,13)>=nowLoc){ start=k; break; } }
+    return out.slice(start,start+48);
+  }
+  function demoForecast(){
+    var out=[], d=new Date(), base=new Date(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours());
+    var pad=function(n){return (n<10?'0':'')+n;};
+    for(var i=0;i<48;i++){
+      var t=new Date(base.getTime()+i*3600000), H=t.getHours();
+      var ts=t.getFullYear()+'-'+pad(t.getMonth()+1)+'-'+pad(t.getDate())+'T'+pad(H)+':00';
+      var temp=38+14*Math.sin((H-9)/24*2*Math.PI)+8-(i>=24?9:0), wind=5+7*Math.abs(Math.sin(H/5));
+      out.push({time:ts,temp:temp,feels:temp-wind*0.4,wind:wind,gust:9+10*Math.abs(Math.sin(H/5)),
+        pop:H>=14&&H<=18?55:10,precip:H>=15&&H<=17&&i<24?0.05:0,code:(H>=15&&H<=17&&i<24)?80:0,day:H>=7&&H<=17});
+    }
+    return out;
+  }
+  var SEVERE=[[[95,96,99],2,'Thunderstorms possible'],[[56,57,66,67],2,'Freezing rain or drizzle possible'],[[75,86],2,'Heavy snow possible'],[[71,73,77,85],1,'Snow possible']];
+  function housingAlerts(hrs, p){
+    var items=[], level=0, minF=null, maxT=null, maxG=null;
+    function add(l,txt){ items.push({level:l,text:txt}); if(l>level) level=l; }
+    hrs.forEach(function(x){
+      var f=(x.feels==null?x.temp:x.feels);
+      if(!minF||f<minF.v) minF={v:f,t:x.time}; if(!maxT||x.temp>maxT.v) maxT={v:x.temp,t:x.time}; if(!maxG||x.gust>maxG.v) maxG={v:x.gust,t:x.time};
+    });
+    if(!minF) return {level:0,items:[]};
+    if(minF.v<=p.coldTemp) add(2,'Feels-like drops to '+Math.round(minF.v)+'F around '+dayLabel(minF.t)+'. Your cold limit is '+p.coldTemp+'F.');
+    else if(minF.v<=p.coldTemp+8) add(1,'Feels-like gets down to '+Math.round(minF.v)+'F around '+dayLabel(minF.t)+', close to your '+p.coldTemp+'F cold limit.');
+    if(maxT.v>=p.heatTemp) add(2,'High of '+Math.round(maxT.v)+'F around '+dayLabel(maxT.t)+'. Your heat limit is '+p.heatTemp+'F.');
+    else if(maxT.v>=p.heatTemp-5) add(1,'High of '+Math.round(maxT.v)+'F around '+dayLabel(maxT.t)+', close to your '+p.heatTemp+'F heat limit.');
+    if(maxG.v>=p.stormGust) add(2,'Gusts to '+Math.round(maxG.v)+' mph around '+dayLabel(maxG.t)+'. Your wind limit for outdoor housing is '+p.stormGust+' mph.');
+    else if(maxG.v>=p.stormGust-5) add(1,'Gusts to '+Math.round(maxG.v)+' mph around '+dayLabel(maxG.t)+', close to your '+p.stormGust+' mph limit.');
+    SEVERE.forEach(function(s){
+      for(var i=0;i<hrs.length;i++){ if(s[0].indexOf(hrs[i].code)>=0){ add(s[1],s[2]+' around '+dayLabel(hrs[i].time)+'.'); break; } }
+    });
+    return {level:level,items:items};
+  }
+  function toGrams(v,unit){ return unit==='oz'?v*28.3495:v; }
+  function fromGrams(g,unit){ return unit==='oz'?g/28.3495:g; }
+  function fmtWeight(g,unit){ return unit==='oz'?(g/28.3495).toFixed(1)+' oz':Math.round(g)+' g'; }
+  function weightStats(logs){
+    var w=logs.filter(function(e){return e.type==='weight';}).sort(function(a,b){return a.ts<b.ts?-1:a.ts>b.ts?1:0;});
+    if(!w.length) return null;
+    var last=w[w.length-1], prev=w[w.length-2], cut=new Date(last.ts).getTime()-7*86400000;
+    var recent=w.filter(function(e){return new Date(e.ts).getTime()>=cut;});
+    var avg=recent.reduce(function(s,e){return s+e.grams;},0)/recent.length;
+    return {last:last.grams,lastTs:last.ts,delta:prev?last.grams-prev.grams:null,avg7:avg,n:w.length,series:w};
+  }
+  function huntStats(logs){
+    var h=logs.filter(function(e){return e.type==='hunt';});
+    var caught=h.filter(function(e){return e.result==='Caught';}).reduce(function(s,e){return s+(e.count||1);},0);
+    return {hunts:h.length,caught:caught};
+  }
+  function daysUntil(dateStr, now){
+    var t=now||new Date(); var today=new Date(t.getFullYear(),t.getMonth(),t.getDate());
+    var p=dateStr.split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]);
+    return Math.round((d-today)/86400000);
+  }
+  function whenText(n){ if(n===0) return 'Today'; if(n===1) return 'Tomorrow'; if(n>1) return 'In '+n+' days'; return Math.abs(n)+(n===-1?' day ago':' days ago'); }
+  function seasonStatus(start,end,now){
+    var a=daysUntil(start,now), b=end?daysUntil(end,now):null;
+    if(a>0) return {state:'upcoming',text:'Opens '+whenText(a).toLowerCase()};
+    if(b===null) return {state:'open',text:'Open since '+start};
+    if(b>=0) return {state:'open',text:'In season, closes '+whenText(b).toLowerCase()};
+    return {state:'closed',text:'Closed '+whenText(b).toLowerCase()};
+  }
+  /* Flights: learn from outcomes. Suggestions only, never automatic. */
+  function suggestLimits(flights){
+    var good=flights.filter(function(f){return f.outcome==='Good';}), need=5;
+    var poor=flights.filter(function(f){return f.outcome==='Poor';});
+    if(good.length<need) return {ready:false,good:good.length,poor:poor.length,need:need};
+    function mm(k){ var v=good.map(function(f){return f[k];}); return [Math.min.apply(null,v),Math.max.apply(null,v)]; }
+    var t=mm('temp'), w=mm('wind'), g=mm('gust'), p=mm('pop');
+    return {ready:true,good:good.length,poor:poor.length,minTemp:Math.floor(t[0]),maxTemp:Math.ceil(t[1]),maxWind:Math.ceil(w[1]),maxGust:Math.ceil(g[1]),maxPop:Math.ceil(p[1])};
+  }
+  /* Calendar export */
+  function icsEscape(s){ return String(s==null?'':s).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+  function ymd(d){ return d.replace(/-/g,''); }
+  function addDay(dateStr,n){ var p=dateStr.split('-'), d=new Date(Date.UTC(+p[0],+p[1]-1,+p[2]+n)); return d.toISOString().slice(0,10); }
+  function entryDesc(e,types){ var parts=[types[e.type]||e.type]; if(e.notes) parts.push(String(e.notes).replace(/\.+$/,'')); if(e.src) parts.push('Source: '+e.src); return parts.join('. '); }
+  function toICS(entries,types,now){
+    var stamp=(now||new Date()).toISOString().replace(/[-:]/g,'').slice(0,15)+'Z';
+    var L=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//Stoop//Falconry Field Planner//EN','CALSCALE:GREGORIAN'];
+    entries.forEach(function(e){
+      L.push('BEGIN:VEVENT','UID:'+e.id+'@stoop.local','DTSTAMP:'+stamp,'DTSTART;VALUE=DATE:'+ymd(e.date),'DTEND;VALUE=DATE:'+ymd(addDay(e.end||e.date,1)),
+        'SUMMARY:'+icsEscape(e.title),'DESCRIPTION:'+icsEscape(entryDesc(e,types)));
+      if(e.type==='license') L.push('BEGIN:VALARM','TRIGGER:-P7D','ACTION:DISPLAY','DESCRIPTION:'+icsEscape(e.title+' is due in 7 days'),'END:VALARM');
+      L.push('END:VEVENT');
+    });
+    L.push('END:VCALENDAR'); return L.join('\r\n')+'\r\n';
+  }
+  function googleLink(e,types){
+    return 'https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(e.title)+'&dates='+ymd(e.date)+'/'+ymd(addDay(e.end||e.date,1))+'&details='+encodeURIComponent(entryDesc(e,types));
+  }
+  var BIRDS=[
+    {id:'rt',name:'Red-tailed hawk',minTemp:20,maxTemp:85,maxWind:15,maxGust:22,maxPop:30,coldTemp:10,heatTemp:90,stormGust:35},
+    {id:'hh',name:"Harris's hawk",minTemp:30,maxTemp:90,maxWind:15,maxGust:20,maxPop:30,coldTemp:25,heatTemp:95,stormGust:30},
+    {id:'pf',name:'Peregrine falcon',minTemp:15,maxTemp:85,maxWind:20,maxGust:28,maxPop:25,coldTemp:5,heatTemp:88,stormGust:35},
+    {id:'ch',name:"Cooper's hawk",minTemp:25,maxTemp:90,maxWind:12,maxGust:18,maxPop:25,coldTemp:15,heatTemp:90,stormGust:30},
+    {id:'ak',name:'American kestrel',minTemp:30,maxTemp:90,maxWind:12,maxGust:18,maxPop:20,coldTemp:20,heatTemp:92,stormGust:30}
+  ];
+  var COLORS=['#3b82f6','#8b5cf6','#ec4899','#06b6d4','#78716c','#f97316'];
+  var REF_NC=[
+    {id:'ref-nc-ncfg-2027',title:'NCFG Annual Field Meet (40th year)',type:'meet',date:'2027-01-08',end:'2027-01-10',notes:'Camp Walter Johnson, Denton, NC. Check the guild site for registration.',src:'https://ncfg.squarespace.com/events'},
+    {id:'ref-nc-fal-ducks-1',title:'NC extended falconry: ducks, mergansers, coots (part 1)',type:'season',date:'2026-10-01',end:'2026-10-10',notes:'Daily limit 3. Source does not label the hunting year; likely 2026-27. Verify in the NCWRC regulations digest.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
+    {id:'ref-nc-fal-doves',title:'NC extended falconry: doves',type:'season',date:'2026-10-12',end:'2026-10-24',notes:'Mourning and white-winged. Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
+    {id:'ref-nc-fal-woodcock-1',title:'NC extended falconry: woodcock (part 1)',type:'season',date:'2026-12-01',end:'2026-12-09',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
+    {id:'ref-nc-fal-rails',title:'NC extended falconry: rails, gallinule, moorhen',type:'season',date:'2026-12-05',end:'2027-01-09',notes:'King, clapper, Virginia and sora rails. Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
+    {id:'ref-nc-fal-woodcock-2',title:'NC extended falconry: woodcock (part 2)',type:'season',date:'2027-02-01',end:'2027-02-20',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
+    {id:'ref-nc-fal-ducks-2',title:'NC extended falconry: ducks, mergansers, coots (part 2)',type:'season',date:'2027-02-01',end:'2027-02-06',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'}
+  ];
+  return {rate:rate,scoreHour:scoreHour,hourLabel:hourLabel,endLabel:endLabel,dayLabel:dayLabel,bestWindow:bestWindow,pickWindow:pickWindow,
+    explainWindow:explainWindow,parseForecast:parseForecast,demoForecast:demoForecast,housingAlerts:housingAlerts,
+    toGrams:toGrams,fromGrams:fromGrams,fmtWeight:fmtWeight,weightStats:weightStats,huntStats:huntStats,
+    suggestLimits:suggestLimits,toICS:toICS,googleLink:googleLink,addDay:addDay,
+    daysUntil:daysUntil,whenText:whenText,seasonStatus:seasonStatus,BIRDS:BIRDS,COLORS:COLORS,REF_NC:REF_NC};
+})();
+if(typeof module!=='undefined') module.exports=FP;
+</script>
+
+<script id="ui">
+(function(){
+  var KEY='fieldplanner.v1', mem=null;
+  function defaults(){
+    var b=JSON.parse(JSON.stringify(FP.BIRDS)); b.forEach(function(x,i){ x.color=FP.COLORS[i%FP.COLORS.length]; });
+    return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:'rt',birds:b,entries:[],log:[],unit:'g',theme:'dark',tab:'today'};
+  }
+  function migrate(s){
+    var d=defaults();
+    ['log','entries'].forEach(function(k){ if(!Array.isArray(s[k])) s[k]=[]; });
+    if(!s.unit) s.unit='g'; if(!s.theme) s.theme='dark'; if(!s.tab) s.tab='today'; if(!s.loc) s.loc=d.loc;
+    s.birds.forEach(function(b,i){
+      var base=FP.BIRDS.filter(function(x){return x.id===b.id;})[0]||{coldTemp:20,heatTemp:90,stormGust:30};
+      ['coldTemp','heatTemp','stormGust'].forEach(function(k){ if(b[k]==null) b[k]=base[k]; });
+      if(!b.color) b.color=FP.COLORS[i%FP.COLORS.length];
+    });
+    if(!s.birds.some(function(b){return b.id===s.birdId;})) s.birdId=s.birds[0].id;
+    return s;
+  }
+  function load(){ try{ var r=localStorage.getItem(KEY); if(r){ var s=JSON.parse(r); if(s&&s.birds&&s.birds.length) return migrate(s); } }catch(e){} return migrate(mem||defaults()); }
+  var S=load();
+  function save(){ mem=S; try{ localStorage.setItem(KEY,JSON.stringify(S)); }catch(e){} }
+  function h(tag,attrs){
+    var e=document.createElement(tag), a=attrs||{};
+    for(var k in a){ if(k==='class') e.className=a[k]; else if(k.slice(0,2)==='on') e.addEventListener(k.slice(2),a[k]); else if(a[k]!==false&&a[k]!=null) e.setAttribute(k,a[k]); }
+    for(var i=2;i<arguments.length;i++){ var c=arguments[i]; if(c==null) continue; if(Array.isArray(c)){ c.forEach(function(x){ if(x!=null) e.append(x.nodeType?x:document.createTextNode(x)); }); } else e.append(c.nodeType?c:document.createTextNode(c)); }
+    return e;
+  }
+  function bird(){ return S.birds.filter(function(b){return b.id===S.birdId;})[0]||S.birds[0]; }
+  function num(v,d){ var n=parseFloat(v); return isNaN(n)?d:n; }
+  function dot(b){ return h('span',{class:'dot',style:'--bc:'+b.color,'aria-hidden':'true'}); }
+  function nowInput(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes()); }
+  function applyTheme(){ document.documentElement.setAttribute('data-theme',S.theme); document.getElementById('themebtn').textContent=S.theme==='dark'?'Light mode':'Dark mode'; }
+  document.getElementById('themebtn').addEventListener('click',function(){ S.theme=S.theme==='dark'?'light':'dark'; save(); applyTheme(); });
+
+  var TABS=[['today','Today'],['log','Log'],['cal','Calendar'],['birds','Birds']];
+  function renderTabs(){
+    var t=document.getElementById('tabs'); t.textContent='';
+    TABS.forEach(function(x){ t.append(h('button',{role:'tab',type:'button','aria-selected':String(S.tab===x[0]),onclick:function(){ S.tab=x[0]; save(); renderAll(); }},x[1])); });
+    TABS.forEach(function(x){ document.getElementById('tab-'+x[0]).hidden=(S.tab!==x[0]); });
+  }
+  function renderBirdBar(){
+    var bar=document.getElementById('birdbar'); bar.textContent='';
+    if(S.tab==='cal') return;
+    var chips=h('div',{class:'chips',role:'group','aria-label':'Active bird'});
+    S.birds.forEach(function(b){
+      chips.append(h('button',{class:'chip',type:'button','aria-pressed':String(b.id===S.birdId),style:'--bc:'+b.color,onclick:function(){ S.birdId=b.id; save(); renderAll(); }},dot(b),b.name));
+    });
+    bar.append(chips);
+  }
+  function banner(text){
+    var b=bird();
+    return h('div',{class:'banner',style:'--bc:'+b.color,role:'status'},
+      h('b',null,text+' '),dot(b),h('b',null,' '+b.name+' only.'),
+      h('div',{class:'note'},'Each bird has its own limits and its own records. Tap a bird above to switch.'));
+  }
+
+  /* ---------- today ---------- */
+  var hours=null, sel=0, note='';
+  function renderToday(){
+    var root=document.getElementById('tab-today'); root.textContent='';
+    var b=bird();
+    root.append(banner('Ratings below are for'));
+    if(note) root.append(h('div',{class:'warn',role:'status'},note));
+    if(hours){
+      if(S.birds.length>1) root.append(glanceCard());
+      root.append(housingCard());
+      root.append(forecastCard(b));
+    }
+    root.append(flightCard(b)); root.append(locCard()); root.append(manualCard(b));
+  }
+  function flightCard(b){
+    var c0=hours?hours[0]:null;
+    var when=h('input',{id:'f-when',type:'datetime-local',value:nowInput()}),
+      outcome=h('select',{id:'f-out'},['Good','OK','Poor'].map(function(x){return h('option',{value:x},x);})),
+      t=h('input',{id:'f-temp',type:'number',step:'any',value:c0?Math.round(c0.temp):''}), w=h('input',{id:'f-wind',type:'number',step:'any',value:c0?Math.round(c0.wind):''}),
+      g=h('input',{id:'f-gust',type:'number',step:'any',value:c0?Math.round(c0.gust):''}), p=h('input',{id:'f-pop',type:'number',step:'any',value:c0?Math.round(c0.pop):''}),
+      txt=h('input',{id:'f-note',placeholder:'Optional: where, quarry, how she flew'}), err=h('p',{class:'note',role:'alert'});
+    return h('details',{class:'card'},h('summary',null,'I flew '+b.name+' (log a flight)'),
+      h('p',{class:'note'},'Saves the conditions with how it went. After five good flights, the Log tab suggests limits based on what you actually flew in. Nothing changes unless you accept it.'),
+      h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:'f-when'},'When'),when),h('div',{class:'field'},h('label',{for:'f-out'},'How it went'),outcome)),
+      h('div',{class:'row',style:'margin-top:10px'},
+        h('div',{class:'field'},h('label',{for:'f-temp'},'Temp (F)'),t),h('div',{class:'field'},h('label',{for:'f-wind'},'Wind (mph)'),w),
+        h('div',{class:'field'},h('label',{for:'f-gust'},'Gusts (mph)'),g),h('div',{class:'field'},h('label',{for:'f-pop'},'Rain chance (%)'),p)),
+      h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field',style:'flex:2 1 220px'},h('label',{for:'f-note'},'Notes'),txt),
+        h('button',{class:'btn',id:'f-save',type:'button',onclick:function(){
+          var vals=[t,w,g,p].map(function(x){return parseFloat(x.value);});
+          if(vals.some(isNaN)){ err.textContent='Fill in temp, wind, gusts and rain chance. The forecast fills them in when it is loaded.'; return; }
+          S.log.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),birdId:b.id,type:'flight',ts:when.value||nowInput(),outcome:outcome.value,temp:vals[0],wind:vals[1],gust:vals[2],pop:vals[3],precip:0,text:txt.value.trim()});
+          save(); err.textContent='Saved to '+b.name+'\'s log.'; }},'Save flight')),err);
+  }
+  function locCard(){
+    var name=h('input',{id:'locname',value:S.loc.name}), lat=h('input',{id:'lat',type:'number',step:'0.01',value:S.loc.lat}), lon=h('input',{id:'lon',type:'number',step:'0.01',value:S.loc.lon});
+    function grab(){ S.loc={name:name.value,lat:num(lat.value,35.66),lon:num(lon.value,-81.22)}; save(); }
+    return h('details',{class:'card'},h('summary',null,'Location: '+S.loc.name),
+      h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field',style:'flex:2 1 220px'},h('label',{for:'locname'},'Place name'),name)),
+      h('div',{class:'row',style:'margin-top:10px'},
+        h('div',{class:'field'},h('label',{for:'lat'},'Latitude'),lat),h('div',{class:'field'},h('label',{for:'lon'},'Longitude'),lon),
+        h('button',{class:'btn',id:'getfc',type:'button',onclick:function(){ grab(); fetchForecast(); }},'Get live forecast'),
+        h('button',{class:'btn ghost',id:'demo',type:'button',onclick:function(){ grab(); hours=FP.demoForecast(); sel=0; note='Showing made-up demo data, not a real forecast.'; renderToday(); }},'Use demo data')));
+  }
+  function fetchForecast(){
+    note='Fetching forecast...'; renderToday();
+    var u='https://api.open-meteo.com/v1/forecast?latitude='+S.loc.lat+'&longitude='+S.loc.lon+
+      '&hourly=temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,precipitation_probability,precipitation,weather_code,is_day'+
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&forecast_days=3&timezone=auto';
+    fetch(u).then(function(r){ if(!r.ok) throw new Error('status '+r.status); return r.json(); }).then(function(j){
+      hours=FP.parseForecast(j); sel=0; note=''; renderToday();
+    }).catch(function(){
+      hours=FP.demoForecast(); sel=0;
+      note='Could not reach the weather service from here, so this is made-up demo data. Some viewers block outside connections. Open the file in a normal browser for live data, or type conditions in below.';
+      renderToday();
+    });
+  }
+  function scoredFor(p){ return hours.slice(0,24).map(function(x){ return {x:x,s:FP.scoreHour(x,p)}; }); }
+  function glanceCard(){
+    var tbl=h('table',{class:'glance'},h('tr',null,h('th',null,'Bird'),h('th',null,'Right now'),h('th',null,'Best window')));
+    S.birds.forEach(function(p){
+      var sc=scoredFor(p), w=FP.pickWindow(sc), now=sc[0].s;
+      tbl.append(h('tr',null,
+        h('td',null,h('span',{style:'display:inline-flex;gap:6px;align-items:center'},dot(p),p.name)),
+        h('td',null,h('span',{class:'pill '+now.key},now.label)),
+        h('td',null,w?((sc[w.start].x.time.slice(0,10)!==sc[0].x.time.slice(0,10)?'Tomorrow ':'')+FP.hourLabel(sc[w.start].x.time)+' to '+FP.endLabel(sc[w.end].x.time)+(w.strict?'':' (caution)')):'None')));
+    });
+    return h('div',{class:'card'},h('h2',null,'All your birds'),h('p',{class:'note',style:'margin:0'},'Each row uses that bird\'s own limits. The detailed view below is only for '+bird().name+'.'),tbl);
+  }
+  function housingCard(){
+    var worst=0, blocks=[];
+    S.birds.forEach(function(p){
+      var a=FP.housingAlerts(hours,p); if(a.level>worst) worst=a.level;
+      if(a.items.length) blocks.push(h('div',{style:'margin-top:10px'},
+        h('span',{style:'display:inline-flex;gap:6px;align-items:center;font-weight:700'},dot(p),p.name+': '+(a.level===2?'Consider bringing in or checking housing':'Watch')),
+        h('ul',{class:'reasons'},a.items.map(function(i){ return h('li',null,(i.level===2?'Over your limit. ':'Getting close. ')+i.text); }))));
+    });
+    var head=worst===2?'Housing alert, next 48 hours':worst===1?'Housing watch, next 48 hours':'No housing alerts in the next 48 hours';
+    var c=h('div',{class:'card alert L'+worst},h('h2',null,head));
+    if(!blocks.length) c.append(h('p',{class:'note',style:'margin:0'},'Cold, heat, wind and storm checks against each bird\'s housing limits (see the Birds tab).'));
+    else blocks.forEach(function(x){ c.append(x); });
+    return c;
+  }
+  function forecastCard(b){
+    var scored=scoredFor(b), w=FP.pickWindow(scored), hero=h('div',{class:'card hero '+(w?(w.strict?'GO':'CAUTION'):'NOGO')});
+    if(w){
+      var tag=w.strict?'GO':'CAUTION', day=scored[w.start].x.time.slice(0,10)!==scored[0].x.time.slice(0,10)?'Tomorrow ':'';
+      hero.append(h('p',{class:'big '+tag},w.strict?'Best window':'Best window, with caution'),
+        h('p',{style:'margin:2px 0 0;font-size:1.15rem;font-weight:700'},day+FP.hourLabel(scored[w.start].x.time)+' to '+FP.endLabel(scored[w.end].x.time)+' ('+(w.end-w.start+1)+' hr)'),
+        h('p',{class:'note',style:'margin:2px 0 0'},'For '+b.name+' at '+S.loc.name+'. Next 24 hours, daylight only.'),
+        h('h3',{style:'margin-top:10px'},'Why this window'),
+        h('ul',{class:'why'},FP.explainWindow(scored,w,b).map(function(l){return h('li',null,l);})));
+    } else {
+      hero.append(h('p',{class:'big NOGO'},'No flyable window'),h('p',{class:'note'},'Nothing in the next 24 hours clears the limits for '+b.name+'. Tap an hour to see why.'));
+    }
+    var grid=h('div',{class:'grid'});
+    scored.forEach(function(r,i){
+      grid.append(h('button',{class:'cell '+r.s.key,type:'button','aria-pressed':String(i===sel),'aria-label':FP.hourLabel(r.x.time)+': '+r.s.label,onclick:function(){ sel=i; renderToday(); }},
+        h('b',null,FP.hourLabel(r.x.time)),r.s.label,h('br'),Math.round(r.x.temp)+'F'));
+    });
+    var cur=scored[sel], det=h('div',null,
+      h('p',{style:'margin:0'},h('b',null,FP.hourLabel(cur.x.time)+': '+cur.s.label)),
+      h('p',{class:'note',style:'margin:2px 0 0'},Math.round(cur.x.temp)+'F (feels '+Math.round(cur.x.feels)+'F), wind '+Math.round(cur.x.wind)+' mph, gusts '+Math.round(cur.x.gust)+' mph, rain chance '+Math.round(cur.x.pop)+'%'),
+      cur.s.reasons.length?h('ul',{class:'reasons'},cur.s.reasons.map(function(r){return h('li',null,r);})):h('p',{class:'note'},'Everything is inside the limits.'));
+    var legend=h('div',{class:'legend'},h('span',null,'Go: inside limits'),h('span',null,'Caution: close to a limit'),h('span',null,'No-go: over a limit'),h('span',null,'Dark: after sunset'));
+    return h('div',null,hero,h('div',{class:'card'},h('h2',null,'Next 24 hours, '+b.name),grid,legend,h('div',{style:'margin-top:10px'},det)));
+  }
+  function manualCard(b){
+    var f={temp:h('input',{id:'m-temp',type:'number',value:'45'}),wind:h('input',{id:'m-wind',type:'number',value:'8'}),gust:h('input',{id:'m-gust',type:'number',value:'14'}),pop:h('input',{id:'m-pop',type:'number',value:'10'})};
+    var out=h('div',{role:'status',style:'margin-top:10px'});
+    function check(){
+      var s=FP.scoreHour({day:true,temp:num(f.temp.value,0),wind:num(f.wind.value,0),gust:num(f.gust.value,0),pop:num(f.pop.value,0),precip:0},b);
+      out.textContent='';
+      out.append(h('p',{class:'big '+s.key,style:'font-size:1.5rem'},s.label+' for '+b.name),
+        s.reasons.length?h('ul',{class:'reasons'},s.reasons.map(function(r){return h('li',null,r);})):h('p',{class:'note'},'Inside the limits for '+b.name+'.'));
+    }
+    return h('div',{class:'card'},h('h2',null,'Check conditions by hand'),
+      h('p',{class:'note',style:'margin-top:0'},'Type what you see at the field. Rated for '+b.name+'.'),
+      h('div',{class:'row'},
+        h('div',{class:'field'},h('label',{for:'m-temp'},'Temp (F)'),f.temp),h('div',{class:'field'},h('label',{for:'m-wind'},'Wind (mph)'),f.wind),
+        h('div',{class:'field'},h('label',{for:'m-gust'},'Gusts (mph)'),f.gust),h('div',{class:'field'},h('label',{for:'m-pop'},'Rain chance (%)'),f.pop),
+        h('button',{class:'btn',id:'m-go',type:'button',onclick:check},'Check')),out);
+  }
+
+  /* ---------- log ---------- */
+  var LOGTYPES={weight:'Weight',feed:'Feeding',hunt:'Hunt',flight:'Flight',note:'Note'};
+  function svgEl(tag,attrs){ var e=document.createElementNS('http://www.w3.org/2000/svg',tag); for(var k in attrs) e.setAttribute(k,attrs[k]); return e; }
+  function weightChart(ws,b){
+    var pts=ws.series.slice(-30), W=320,H=140,L=38,R=8,T=10,B=22;
+    var vals=pts.map(function(e){return FP.fromGrams(e.grams,S.unit);}), fw=b.flyG?FP.fromGrams(b.flyG,S.unit):null;
+    var all=vals.concat(fw?[fw]:[]), lo=Math.min.apply(null,all), hi=Math.max.apply(null,all); if(hi-lo<1){ hi+=1; lo-=1; } var pad=(hi-lo)*0.1; lo-=pad; hi+=pad;
+    function X(i){ return pts.length===1?(L+(W-L-R)/2):L+i*(W-L-R)/(pts.length-1); } function Y(v){ return T+(hi-v)/(hi-lo)*(H-T-B); }
+    var svg=svgEl('svg',{viewBox:'0 0 '+W+' '+H,class:'chart',role:'img','aria-label':'Weight trend for '+b.name,width:'100%'});
+    [lo,(lo+hi)/2,hi].forEach(function(v){ svg.append(svgEl('line',{x1:L,x2:W-R,y1:Y(v),y2:Y(v),style:'stroke:var(--line)','stroke-width':1}));
+      var t=svgEl('text',{x:L-4,y:Y(v)+3,'text-anchor':'end'}); t.textContent=S.unit==='oz'?v.toFixed(1):Math.round(v); svg.append(t); });
+    if(fw){ svg.append(svgEl('line',{x1:L,x2:W-R,y1:Y(fw),y2:Y(fw),style:'stroke:var(--accent)','stroke-width':1.5,'stroke-dasharray':'5 3'}));
+      var ft=svgEl('text',{x:W-R,y:Y(fw)-3,'text-anchor':'end'}); ft.textContent='your target'; svg.append(ft); }
+    svg.append(svgEl('polyline',{points:vals.map(function(v,i){return X(i)+','+Y(v);}).join(' '),style:'fill:none;stroke:'+b.color,'stroke-width':2.5}));
+    vals.forEach(function(v,i){ svg.append(svgEl('circle',{cx:X(i),cy:Y(v),r:3.2,style:'fill:'+b.color})); });
+    [0,pts.length-1].forEach(function(i,k){ if(k===1&&pts.length===1) return; var t=svgEl('text',{x:X(i),y:H-6,'text-anchor':k?'end':'start'}); t.textContent=pts[i].ts.slice(5,10); svg.append(t); });
+    return svg;
+  }
+  function flightInsights(b,mine){
+    var fl=mine.filter(function(e){return e.type==='flight';}), s=FP.suggestLimits(fl);
+    var c=h('div',{class:'card'},h('h2',null,'What your flights say'));
+    if(!fl.length){ c.append(h('p',{class:'note',style:'margin:0'},'No flights logged for '+b.name+' yet. Use "I flew" on the Today tab after a flight.')); return c; }
+    if(!s.ready){ c.append(h('p',{class:'note',style:'margin:0'},fl.length+' flight'+(fl.length===1?'':'s')+' logged, '+s.good+' good. Log '+(s.need-s.good)+' more good flight'+(s.need-s.good===1?'':'s')+' and this will suggest limits from what you actually flew in.')); return c; }
+    c.append(h('p',{class:'note',style:'margin-top:0'},'From '+s.good+' good flights. These are the conditions you have flown successfully in, not proof of safe limits. It never goes beyond what you have actually done.'),
+      h('div',{class:'stats'},
+        h('div',{class:'stat'},h('b',null,s.minTemp+' to '+s.maxTemp+'F'),h('span',null,'Temp range (now '+b.minTemp+' to '+b.maxTemp+')')),
+        h('div',{class:'stat'},h('b',null,'up to '+s.maxWind+' mph'),h('span',null,'Wind (now '+b.maxWind+')')),
+        h('div',{class:'stat'},h('b',null,'up to '+s.maxGust+' mph'),h('span',null,'Gusts (now '+b.maxGust+')')),
+        h('div',{class:'stat'},h('b',null,'up to '+s.maxPop+'%'),h('span',null,'Rain chance (now '+b.maxPop+')'))),
+      s.poor?h('p',{class:'note'},s.poor+' poor flight'+(s.poor===1?'':'s')+' also logged. Check those entries before loosening any limit.'):document.createTextNode(''),
+      h('button',{class:'btn',id:'f-apply',type:'button',onclick:function(){ b.minTemp=s.minTemp; b.maxTemp=s.maxTemp; b.maxWind=s.maxWind; b.maxGust=s.maxGust; b.maxPop=s.maxPop; save(); renderLog(); }},'Use these as '+b.name+'\'s limits'));
+    return c;
+  }
+  function renderLog(){
+    var root=document.getElementById('tab-log'); root.textContent='';
+    var b=bird(), mine=S.log.filter(function(e){return e.birdId===b.id;}), ws=FP.weightStats(mine), hs=FP.huntStats(mine);
+    root.append(banner('Records below are for'));
+    var stats=h('div',{class:'stats'});
+    stats.append(h('div',{class:'stat'},h('b',null,ws?FP.fmtWeight(ws.last,S.unit):'No weights yet'),h('span',null,'Latest weight')));
+    if(ws){
+      stats.append(h('div',{class:'stat'},h('b',null,ws.delta==null?'First entry':(ws.delta>=0?'+':'')+(S.unit==='oz'?(ws.delta/28.3495).toFixed(1)+' oz':Math.round(ws.delta)+' g')),h('span',null,'Change since last')));
+      stats.append(h('div',{class:'stat'},h('b',null,FP.fmtWeight(ws.avg7,S.unit)),h('span',null,'7-day average')));
+      if(b.flyG) stats.append(h('div',{class:'stat'},h('b',null,(ws.last-b.flyG>=0?'+':'')+(S.unit==='oz'?((ws.last-b.flyG)/28.3495).toFixed(1)+' oz':Math.round(ws.last-b.flyG)+' g')),h('span',null,'Versus your target')));
+    }
+    stats.append(h('div',{class:'stat'},h('b',null,hs.caught+' from '+hs.hunts),h('span',null,'Caught, hunts logged')));
+    var chartCard=h('div',{class:'card'},h('h2',null,'Weight'),stats);
+    if(ws) chartCard.append(weightChart(ws,b)); else chartCard.append(h('p',{class:'note'},'Log a weight to see the trend. Set a target weight on the Birds tab to draw a line on the chart.'));
+    root.append(chartCard);
+    root.append(flightInsights(b,mine));
+
+    var type=h('select',{id:'l-type'},Object.keys(LOGTYPES).filter(function(k){return k!=='flight';}).map(function(k){return h('option',{value:k},LOGTYPES[k]);}));
+    var when=h('input',{id:'l-when',type:'datetime-local',value:nowInput()});
+    var weight=h('input',{id:'l-weight',type:'number',step:'any',inputmode:'decimal'}), food=h('input',{id:'l-food',placeholder:'Example: quail'}), amt=h('input',{id:'l-amt',type:'number',step:'any'});
+    var quarry=h('input',{id:'l-quarry',placeholder:'Example: gray squirrel'}), result=h('select',{id:'l-result'},['Caught','Missed','No slip'].map(function(x){return h('option',{value:x},x);})), count=h('input',{id:'l-count',type:'number',value:'1',min:'1'});
+    var text=h('textarea',{id:'l-text',style:'min-height:70px;font-family:inherit;font-size:1rem'}), err=h('p',{class:'note',role:'alert'});
+    var fWeight=h('div',{class:'field'},h('label',{for:'l-weight'},'Weight ('+S.unit+')'),weight);
+    var fFood=h('div',{class:'row'},h('div',{class:'field'},h('label',{for:'l-food'},'Food'),food),h('div',{class:'field'},h('label',{for:'l-amt'},'Amount (g)'),amt));
+    var fHunt=h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 160px'},h('label',{for:'l-quarry'},'Quarry'),quarry),h('div',{class:'field'},h('label',{for:'l-result'},'Result'),result),h('div',{class:'field',style:'flex:0 1 80px'},h('label',{for:'l-count'},'Count'),count));
+    var fText=h('div',{class:'field'},h('label',{for:'l-text'},'Notes'),text);
+    function sync(){ fWeight.hidden=type.value!=='weight'; fFood.hidden=type.value!=='feed'; fHunt.hidden=type.value!=='hunt'; }
+    type.addEventListener('change',sync);
+    var unit=h('select',{id:'l-unit',onchange:function(e){ S.unit=e.target.value; save(); renderLog(); }},['g','oz'].map(function(u){return h('option',{value:u,selected:u===S.unit?'selected':false},u==='g'?'Grams':'Ounces');}));
+    var form=h('div',{class:'card'},h('h2',null,'Add to '+b.name+'\'s log'),
+      h('div',{class:'row'},h('div',{class:'field'},h('label',{for:'l-type'},'What'),type),h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:'l-when'},'When'),when),h('div',{class:'field',style:'flex:0 1 110px'},h('label',{for:'l-unit'},'Weight unit'),unit)),
+      h('div',{style:'margin-top:10px;display:flex;flex-direction:column;gap:10px'},fWeight,fFood,fHunt,fText),
+      h('div',{class:'row',style:'margin-top:10px'},h('button',{class:'btn',id:'l-add',type:'button',onclick:function(){
+        var e={id:Date.now()+''+Math.random().toString(36).slice(2,6),birdId:b.id,type:type.value,ts:when.value||nowInput(),text:text.value.trim()};
+        if(e.type==='weight'){ var v=num(weight.value,NaN); if(isNaN(v)||v<=0){ err.textContent='Enter a weight.'; return; } e.grams=FP.toGrams(v,S.unit); }
+        if(e.type==='feed'){ if(!food.value.trim()){ err.textContent='Enter the food.'; return; } e.food=food.value.trim(); e.amount=num(amt.value,null); }
+        if(e.type==='hunt'){ if(!quarry.value.trim()){ err.textContent='Enter the quarry.'; return; } e.quarry=quarry.value.trim(); e.result=result.value; e.count=Math.max(1,parseInt(count.value,10)||1); }
+        if(e.type==='note'&&!e.text){ err.textContent='Write a note.'; return; }
+        S.log.push(e); save(); renderLog(); }},'Save to '+b.name+'\'s log')),err);
+    sync(); root.append(form);
+
+    var list=mine.slice().sort(function(a,c){return a.ts<c.ts?1:a.ts>c.ts?-1:0;}).slice(0,40);
+    var lc=h('div',{class:'card'},h('h2',null,'Recent entries, '+b.name));
+    if(!list.length) lc.append(h('p',{class:'note'},'Nothing logged for '+b.name+' yet.'));
+    list.forEach(function(e){
+      var title=e.type==='weight'?'Weight '+FP.fmtWeight(e.grams,S.unit):e.type==='feed'?'Fed '+e.food+(e.amount?', '+e.amount+' g':''):e.type==='hunt'?'Hunt: '+e.result+', '+e.quarry+(e.count>1?' x'+e.count:''):e.type==='flight'?'Flight: '+e.outcome+', '+Math.round(e.temp)+'F, wind '+Math.round(e.wind)+' mph, gusts '+Math.round(e.gust)+', rain chance '+Math.round(e.pop)+'%':'Note';
+      lc.append(h('div',{class:'item'},h('div',null,h('div',{class:'t'},title),h('div',{class:'m'},LOGTYPES[e.type]+' · '+e.ts.replace('T',' ')),e.text?h('div',{class:'m'},e.text):null),
+        h('button',{class:'btn ghost small',type:'button','aria-label':'Delete entry',onclick:function(){ S.log=S.log.filter(function(x){return x.id!==e.id;}); save(); renderLog(); }},'Delete')));
+    });
+    root.append(lc);
+  }
+
+  /* ---------- calendar ---------- */
+  var TYPES={season:'Season',license:'Permit or license',meet:'Field meet or club',trip:'Trip',other:'Other'};
+  function renderCal(){
+    var root=document.getElementById('tab-cal'); root.textContent='';
+    var title=h('input',{id:'c-title',placeholder:'Example: General permit renewal'}),
+      type=h('select',{id:'c-type'},Object.keys(TYPES).map(function(k){return h('option',{value:k},TYPES[k]);})),
+      date=h('input',{id:'c-date',type:'date'}), end=h('input',{id:'c-end',type:'date'}), notes=h('input',{id:'c-notes',placeholder:'Optional'}), err=h('p',{class:'note',role:'alert'});
+    root.append(h('div',{class:'card'},h('h2',null,'Add a date'),
+      h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 220px'},h('label',{for:'c-title'},'What'),title),h('div',{class:'field'},h('label',{for:'c-type'},'Type'),type)),
+      h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field'},h('label',{for:'c-date'},'Date, or season opens'),date),h('div',{class:'field'},h('label',{for:'c-end'},'Ends (seasons, trips)'),end),h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:'c-notes'},'Notes'),notes),
+        h('button',{class:'btn',id:'c-add',type:'button',onclick:function(){
+          if(!title.value.trim()||!date.value){ err.textContent='Add a name and a date.'; return; }
+          S.entries.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),title:title.value.trim(),type:type.value,date:date.value,end:end.value||'',notes:notes.value.trim()});
+          save(); renderCal(); }},'Add')),err));
+    var list=S.entries.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;}), up=[],pa=[];
+    list.forEach(function(e){ (FP.daysUntil(e.end||e.date)<0?pa:up).push(e); });
+    root.append(listCard('Upcoming and open',up,'Nothing yet. Load the North Carolina starter dates below, or add your own.'));
+    if(pa.length) root.append(listCard('Past',pa,''));
+    var box=h('textarea',{id:'c-json','aria-label':'Backup or calendar file text'}), icsNote=h('p',{class:'note',role:'status'});
+    root.append(h('div',{class:'card'},h('h2',null,'Data and calendar sync'),
+      h('p',{class:'note',style:'margin-top:0'},'Each date has an Add to Google Calendar link. The .ics file works with Apple Calendar, Outlook and others and includes every upcoming date, with a 7-day reminder on permits. Live two-way sync needs a hosted version and is a later stage.'),
+      h('p',{class:'note',style:'margin-top:0'},'North Carolina starter dates come from the NC Falconers Guild events page and the NC extended falconry season table, each with its source. The source pages do not state every year, so verify against the official guide before you plan around them. Your falconry license renewal date was not on a public page, so add yours as a permit.'),
+      h('div',{class:'row',style:'margin-bottom:8px'},
+        h('button',{class:'btn small',id:'c-nc',type:'button',onclick:function(){ var have={}; S.entries.forEach(function(e){have[e.id]=1;}); FP.REF_NC.forEach(function(r){ if(!have[r.id]) S.entries.push(JSON.parse(JSON.stringify(r))); }); save(); renderCal(); }},'Load North Carolina starter dates'),
+        h('button',{class:'btn small',id:'c-ics',type:'button',onclick:function(){
+          var ics=FP.toICS(S.entries.filter(function(e){return FP.daysUntil(e.end||e.date)>=0;}),TYPES); box.value=ics;
+          try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); a.download='stoop-calendar.ics'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){}
+          try{ navigator.clipboard.writeText(ics); }catch(e){} icsNote.textContent='Calendar file text is in the box below. If no download started, copy the text into a file ending in .ics and open it with Apple Calendar, Outlook, or Google Calendar.'; }},'Calendar file (.ics) for phone or Outlook'),
+        h('button',{class:'btn ghost small',id:'c-export',type:'button',onclick:function(){ box.value=JSON.stringify({entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit}); box.select(); try{ navigator.clipboard.writeText(box.value); }catch(e){} }},'Show and copy backup'),
+        h('button',{class:'btn ghost small',id:'c-import',type:'button',onclick:function(){ try{ var j=JSON.parse(box.value); if(j.entries&&j.birds){ S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; S=migrate(S); save(); renderAll(); } else throw 0; }catch(e){ box.value='That is not a valid backup. Paste the full backup text.'; } }},'Restore from text')),icsNote,box));
+  }
+  function listCard(title,items,empty){
+    var c=h('div',{class:'card'},h('h2',null,title));
+    if(!items.length){ c.append(h('p',{class:'note'},empty)); return c; }
+    items.forEach(function(e){
+      var n=FP.daysUntil(e.date), st=null, when;
+      if(e.type==='season'){ st=FP.seasonStatus(e.date,e.end); when=st.text; }
+      else if(e.end && FP.daysUntil(e.end)>=0 && n<0){ when='Under way, ends '+FP.whenText(FP.daysUntil(e.end)).toLowerCase(); }
+      else when=FP.whenText(n);
+      var soon=(n>=0&&n<=30)||(st&&st.state==='open');
+      c.append(h('div',{class:'item'+(FP.daysUntil(e.end||e.date)<0?' past':'')},
+        h('div',null,h('div',{class:'t'},e.title),
+          h('div',{class:'m'},TYPES[e.type]+' · '+e.date+(e.end?' to '+e.end:'')),
+          h('div',{class:soon?'soon':'m'},when),
+          e.notes?h('div',{class:'m'},e.notes):null,
+          e.src?h('div',{class:'m'},'Source: ',h('a',{href:e.src,target:'_blank',rel:'noopener'},e.src.replace(/^https?:\/\//,'').split('/')[0])):null,
+          h('div',{class:'m'},h('a',{href:FP.googleLink(e,TYPES),target:'_blank',rel:'noopener'},'Add to Google Calendar'))),
+        h('button',{class:'btn ghost small',type:'button','aria-label':'Delete '+e.title,onclick:function(){ S.entries=S.entries.filter(function(x){return x.id!==e.id;}); save(); renderCal(); }},'Delete')));
+    });
+    return c;
+  }
+
+  /* ---------- birds ---------- */
+  var removing=null;
+  function renderBirds(){
+    var root=document.getElementById('tab-birds'); root.textContent='';
+    var b=bird();
+    root.append(banner('Editing limits for'));
+    var wf=b.flyG?+FP.fromGrams(b.flyG,S.unit).toFixed(S.unit==='oz'?1:0):'';
+    var fields=[['name','Name','text',null],['flyG','Target weight ('+S.unit+', optional)','number','w'],
+      ['minTemp','Lowest flying temp (F)','number'],['maxTemp','Highest flying temp (F)','number'],['maxWind','Max wind to fly (mph)','number'],['maxGust','Max gusts to fly (mph)','number'],['maxPop','Max rain chance to fly (%)','number'],
+      ['coldTemp','Cold limit, feels-like (F)','number'],['heatTemp','Heat limit (F)','number'],['stormGust','Wind limit for outdoor housing (mph)','number']];
+    var row=h('div',{class:'row'});
+    fields.forEach(function(f){
+      var val=f[3]==='w'?wf:b[f[0]];
+      var inp=h('input',{id:'b-'+f[0],type:f[2],step:'any',value:val,onchange:function(e){
+        if(f[3]==='w'){ var v=num(e.target.value,NaN); b.flyG=isNaN(v)||v<=0?null:FP.toGrams(v,S.unit); }
+        else b[f[0]]=f[2]==='number'?num(e.target.value,b[f[0]]):e.target.value;
+        save(); renderBirdBar(); }});
+      row.append(h('div',{class:'field',style:'flex:1 1 150px'},h('label',{for:'b-'+f[0]},f[1]),inp));
+    });
+    var sw=h('div',{class:'sw',role:'group','aria-label':'Bird color'});
+    FP.COLORS.forEach(function(c,i){ sw.append(h('button',{type:'button','aria-label':'Color '+(i+1),'aria-pressed':String(b.color===c),style:'--bc:'+c,onclick:function(){ b.color=c; save(); renderAll(); }})); });
+    var rm=h('button',{class:'btn ghost small',id:'b-remove',type:'button',onclick:function(){
+      if(S.birds.length<2){ rm.textContent='Keep at least one bird'; return; }
+      if(removing!==b.id){ removing=b.id; rm.textContent='Tap again to remove '+b.name+' and its log'; return; }
+      S.birds=S.birds.filter(function(x){return x.id!==b.id;}); S.log=S.log.filter(function(e){return e.birdId!==b.id;}); S.birdId=S.birds[0].id; removing=null; save(); renderAll(); }},'Remove this bird');
+    root.append(h('div',{class:'card'},h('h2',null,b.name),
+      h('p',{class:'note',style:'margin-top:0'},'Flying limits drive the go/no-go. Housing limits drive the bring-in alerts. Starter numbers are rough guesses. Set them from your own experience with each bird.'),
+      row,h('h3',{style:'margin-top:14px'},'Bird color'),sw,
+      h('div',{class:'row',style:'margin-top:14px'},rm,h('button',{class:'btn',id:'b-new',type:'button',onclick:function(){
+        var id='c'+Date.now(), used=S.birds.length; S.birds.push({id:id,name:'My bird',minTemp:25,maxTemp:85,maxWind:15,maxGust:22,maxPop:30,coldTemp:20,heatTemp:90,stormGust:30,color:FP.COLORS[used%FP.COLORS.length]});
+        S.birdId=id; save(); renderAll(); }},'Add a bird'))));
+  }
+
+  function renderAll(){
+    applyTheme(); renderTabs(); renderBirdBar();
+    if(S.tab==='today') renderToday(); if(S.tab==='log') renderLog(); if(S.tab==='cal') renderCal(); if(S.tab==='birds') renderBirds();
+  }
+  renderAll();
+  if(S.tab==='today') fetchForecast();
+})();
+</script>
+</body>
+</html>
