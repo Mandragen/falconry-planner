@@ -238,6 +238,29 @@ var FP = (function(){
     }
     return out;
   }
+  function outlook(all, p, startKey, maxDays){
+    var days=[], byDate={}, order=[];
+    for(var i=0;i<all.length;i++){
+      var t=all[i].time; if(t.slice(0,13)<startKey) continue;
+      var d=t.slice(0,10); if(!byDate[d]){ byDate[d]=[]; order.push(d); }
+      byDate[d].push(all[i]);
+    }
+    order.slice(0,maxDays).forEach(function(d){
+      var hrs=byDate[d], dayHrs=hrs.filter(function(x){return x.day!==false;}), r={date:d,hours:hrs.length,daylight:dayHrs.length};
+      var sh=dayHrs.length?dayHrs:hrs;
+      var temps=sh.map(function(x){return x.temp;}), gusts=sh.map(function(x){return x.gust;}), winds=sh.map(function(x){return x.wind;}), pops=sh.map(function(x){return x.pop;});
+      r.hi=Math.round(Math.max.apply(null,temps)); r.lo=Math.round(Math.min.apply(null,temps));
+      r.maxWind=Math.round(Math.max.apply(null,winds)); r.maxGust=Math.round(Math.max.apply(null,gusts)); r.maxPop=Math.round(Math.max.apply(null,pops));
+      if(!dayHrs.length){ r.key='DARK'; r.label='No daylight left'; r.win=null; days.push(r); return; }
+      var sc=dayHrs.map(function(x){return {x:x,s:scoreHour(x,p)};}), w=pickWindow(sc), n=w?(w.end-w.start+1):0;
+      if(w&&w.strict&&n>=2){ r.key='GO'; r.label='Go'; }
+      else if(w&&(w.strict||n>=2)){ r.key='CAUTION'; r.label='Caution'; }
+      else { r.key='NOGO'; r.label='No-go'; }
+      r.win=w?{from:hourLabel(sc[w.start].x.time),to:endLabel(sc[w.end].x.time),hours:n,strict:w.strict}:null;
+      days.push(r);
+    });
+    return days;
+  }
   function futureFrom(all){
     var d=new Date(), pad=function(n){return (n<10?'0':'')+n;};
     var key=d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours());
@@ -350,7 +373,7 @@ var FP = (function(){
     {id:'ref-nc-fal-ducks-2',title:'NC extended falconry: ducks, mergansers, coots (part 2)',type:'season',date:'2027-02-01',end:'2027-02-06',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'}
   ];
   return {LIMIT_KEYS:LIMIT_KEYS,SPECIES:SPECIES,DEMO_NAMES:DEMO_NAMES,COLORS:COLORS,speciesById:speciesById,effective:effective,
-    rate:rate,scoreHour:scoreHour,hourLabel:hourLabel,endLabel:endLabel,dayLabel:dayLabel,bestWindow:bestWindow,pickWindow:pickWindow,
+    outlook:outlook,rate:rate,scoreHour:scoreHour,hourLabel:hourLabel,endLabel:endLabel,dayLabel:dayLabel,bestWindow:bestWindow,pickWindow:pickWindow,
     explainWindow:explainWindow,parseAll:parseAll,parseForecast:parseForecast,hourAt:hourAt,demoForecast:demoForecast,futureFrom:futureFrom,
     housingAlerts:housingAlerts,toGrams:toGrams,fromGrams:fromGrams,fmtWeight:fmtWeight,weightStats:weightStats,
     seasonStart:seasonStart,flightStats:flightStats,flownRange:flownRange,suggestLimits:suggestLimits,
@@ -444,7 +467,7 @@ if(typeof module!=='undefined') module.exports=FP;
   }
 
   /* ---------- today ---------- */
-  var hours=null, allHours=null, sel=0, note='', source='';
+  var hours=null, allHours=null, startKey=null, sel=0, note='', source='';
   function renderToday(){
     var root=document.getElementById('tab-today'); root.textContent='';
     var b=bird(); if(!b){ renderFirst(); return; }
@@ -456,6 +479,7 @@ if(typeof module!=='undefined') module.exports=FP;
       if(S.birds.length>1) root.append(glanceCard());
       root.append(housingCard());
       root.append(forecastCard(b));
+      var oc=outlookCard(b); if(oc) root.append(oc);
     }
     root.append(manualCard(b));
   }
@@ -467,16 +491,16 @@ if(typeof module!=='undefined') module.exports=FP;
         h('div',{class:'field',style:'flex:1 1 90px'},h('label',{for:'lat'},'Latitude'),lat),h('div',{class:'field',style:'flex:1 1 90px'},h('label',{for:'lon'},'Longitude'),lon)),
       h('div',{class:'row',style:'margin-top:10px'},
         h('button',{class:'btn',id:'getfc',type:'button',onclick:function(){ grab(); fetchForecast(); }},'Get live forecast'),
-        DEMO?h('button',{class:'btn ghost',id:'demo',type:'button',onclick:function(){ grab(); allHours=FP.demoForecast(); hours=FP.futureFrom(allHours); source='demo'; sel=0; note='Showing made-up demo data, not a real forecast.'; renderToday(); }},'Use demo data'):null),
+        DEMO?h('button',{class:'btn ghost',id:'demo',type:'button',onclick:function(){ grab(); allHours=FP.demoForecast(); hours=FP.futureFrom(allHours); startKey=null; source='demo'; sel=0; note='Showing made-up demo data, not a real forecast.'; renderToday(); }},'Use demo data'):null),
       source==='live'?h('p',{class:'note',style:'margin:8px 0 0'},'Live forecast loaded for '+S.loc.name+'.'):null);
   }
   function fetchForecast(){
     note='Fetching forecast...'; renderToday();
     var u='https://api.open-meteo.com/v1/forecast?latitude='+S.loc.lat+'&longitude='+S.loc.lon+
       '&hourly=temperature_2m,apparent_temperature,wind_speed_10m,wind_gusts_10m,precipitation_probability,precipitation,weather_code,is_day'+
-      '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&past_days=1&forecast_days=3&timezone=auto';
+      '&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&past_days=1&forecast_days=8&timezone=auto';
     fetch(u).then(function(r){ if(!r.ok) throw new Error('status '+r.status); return r.json(); }).then(function(j){
-      allHours=FP.parseAll(j); hours=FP.parseForecast(j); source='live'; sel=0; note=''; renderToday();
+      allHours=FP.parseAll(j); hours=FP.parseForecast(j); startKey=new Date(Date.now()+(j.utc_offset_seconds||0)*1000).toISOString().slice(0,13); source='live'; sel=0; note=''; renderToday();
     }).catch(function(){
       sel=0;
       if(DEMO){ allHours=FP.demoForecast(); hours=FP.futureFrom(allHours); source='demo'; note='Could not reach the weather service, so this is made-up demo data.'; }
@@ -509,6 +533,28 @@ if(typeof module!=='undefined') module.exports=FP;
     if(!blocks.length) c.append(h('p',{class:'note',style:'margin:0'},'Cold, heat, wind and storm checks against each bird\'s housing limits (see the Birds tab).'));
     else blocks.forEach(function(x){ c.append(x); });
     return c;
+  }
+  function outlookCard(b){
+    if(!allHours) return null;
+    var sk=startKey, pad=function(n){return (n<10?'0':'')+n;};
+    if(!sk){ var d0=new Date(); sk=d0.getFullYear()+'-'+pad(d0.getMonth()+1)+'-'+pad(d0.getDate())+'T'+pad(d0.getHours()); }
+    var days=FP.outlook(allHours,eff(b),sk,8);
+    if(days.length<2) return null;
+    var names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], today=days[0].date;
+    var tbl=h('table',{class:'glance'},h('tr',null,h('th',null,'Day'),h('th',null,'Outlook'),h('th',null,'Best window'),h('th',null,'Weather')));
+    days.forEach(function(r,i){
+      var dt=new Date(+r.date.slice(0,4),+r.date.slice(5,7)-1,+r.date.slice(8,10));
+      var nm=i===0?'Today':i===1?'Tomorrow':names[dt.getDay()]+' '+(dt.getMonth()+1)+'/'+dt.getDate();
+      var rough=i>=4;
+      tbl.append(h('tr',{style:rough?'opacity:.85':''},
+        h('td',null,h('b',null,nm),h('br'),h('span',{class:'note',style:'font-size:.72rem'},rough?'rough guide':'firmer')),
+        h('td',null,h('span',{class:'pill '+r.key},r.label)),
+        h('td',null,r.win?(r.win.from+' to '+r.win.to+(r.win.strict?'':' (caution)')):'None'),
+        h('td',null,r.lo+' to '+r.hi+'F',h('br'),h('span',{class:'note',style:'font-size:.72rem'},'wind '+r.maxWind+', gusts '+r.maxGust+', rain '+r.maxPop+'%'))));
+    });
+    return h('div',{class:'card'},h('h2',null,'Planning outlook, '+b.name),
+      h('p',{class:'note',style:'margin:0 0 6px'},'Tentative. Forecasts get much less accurate after about 3 days, so use days 4 and beyond only to plan around, and check again the day before. Daylight hours only, using '+b.name+'\'s limits. Weather shows the daylight range, with the highest wind, gust and rain chance.'),
+      h('div',{class:'tbl',style:'overflow-x:auto'},tbl));
   }
   function forecastCard(b){
     var scored=scoredFor(b), w=FP.pickWindow(scored), p=eff(b), hero=h('div',{class:'card hero '+(w?(w.strict?'GO':'CAUTION'):'NOGO')});
