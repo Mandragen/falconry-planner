@@ -390,11 +390,11 @@ if(typeof module!=='undefined') module.exports=FP;
     return [['Juno','rt'],['Ajax','hh'],['Skye','pf']].map(function(x,i){ return {id:'d'+(i+1),name:x[0],speciesId:x[1],limits:{},color:FP.COLORS[i],isDemo:true,flyG:null,sex:'',band:'',acquired:'',notes:''}; });
   }
   function defaults(){
-    return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today'};
+    return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   function migrate(s){
     ['log','entries'].forEach(function(k){ if(!Array.isArray(s[k])) s[k]=[]; });
-    if(!s.unit) s.unit='g'; if(!s.theme) s.theme='dark'; if(!s.tab) s.tab='today'; if(!s.loc) s.loc=defaults().loc;
+    if(!s.unit) s.unit='g'; if(typeof s.neglectDays!=='number'||s.neglectDays<0) s.neglectDays=3; if(!s.theme) s.theme='dark'; if(!s.tab) s.tab='today'; if(!s.loc) s.loc=defaults().loc;
     if(!Array.isArray(s.birds)) s.birds=[];
     s.birds.forEach(function(b,i){
       if(!b.speciesId){ /* older save: the bird was a species profile */
@@ -468,10 +468,46 @@ if(typeof module!=='undefined') module.exports=FP;
 
   /* ---------- today ---------- */
   var hours=null, allHours=null, startKey=null, sel=0, note='', source='';
+  /* Last logged and neglect: latest entry per bird, flagged when no log for neglectDays. */
+  function daysSince(ts){ var d=new Date(ts); if(isNaN(d.getTime())) return null; return Math.max(0,Math.floor((Date.now()-d.getTime())/86400000)); }
+  function agoText(n){ return n===null?'':n===0?'today':n===1?'1 day ago':n+' days ago'; }
+  function lastLogFor(b){ var m=S.log.filter(function(e){return e.birdId===b.id;}).sort(function(a,c){return a.ts<c.ts?1:a.ts>c.ts?-1:0;}); return m[0]||null; }
+  function neglected(){
+    if(!S.neglectDays) return [];
+    return S.birds.map(function(b){ var e=lastLogFor(b), d=e?daysSince(e.ts):null; return {b:b,e:e,d:d}; })
+      .filter(function(r){ return r.e===null?false:(r.d!==null&&r.d>=S.neglectDays); });
+  }
+  function entryTitle(e){
+    return e.type==='weight'?'Weight '+FP.fmtWeight(e.grams,S.unit):e.type==='feed'?'Fed '+e.food+(e.amount?', '+e.amount+' g':''):e.type==='hunt'?'Hunt: '+e.result+', '+e.quarry+(e.count>1?' x'+e.count:''):
+      e.type==='flight'?'Flight: '+e.outcome+', '+(e.game||0)+' game'+(e.quarry?' ('+e.quarry+')':'')+(e.slips!=null?', '+e.slips+' slips':'')+(e.weightG?', weight '+FP.fmtWeight(e.weightG,S.unit):''):'Note';
+  }
+  function neglectBanner(){
+    var n=neglected(); if(!n.length) return null;
+    return h('div',{class:'card alert L1',role:'status',id:'neglect-banner'},h('h2',null,'Logs need updating'),
+      n.map(function(r){ return h('p',{class:'note',style:'margin:4px 0 0'},dot(r.b),' ',h('b',null,r.b.name),': last log '+agoText(r.d)+'.'); }));
+  }
+  function lastLoggedCard(){
+    var c=h('div',{class:'card',id:'lastlog'},h('h2',null,'Last logged, all birds'));
+    S.birds.forEach(function(p){
+      var e=lastLogFor(p), d=e?daysSince(e.ts):null, late=!!(S.neglectDays&&e&&d!==null&&d>=S.neglectDays);
+      c.append(h('div',{class:'item',style:'border-left:6px solid '+p.color+';padding-left:10px'},
+        h('div',null,h('div',{class:'t'},dot(p),' ',h('b',null,p.name),e?': '+entryTitle(e):': nothing logged yet'),
+          e?h('div',{class:'m'},LOGTYPES[e.type]+' · '+e.ts.replace('T',' ')+' · '+agoText(d)):null,
+          late?h('div',{class:'m',style:'color:var(--caut);font-weight:700'},'No log in '+d+' days'):null),
+        p.id===S.birdId?null:h('button',{class:'btn ghost small',style:'white-space:nowrap;flex:0 0 auto',type:'button','aria-label':'Switch to '+p.name,onclick:function(){ S.birdId=p.id; save(); renderAll(); }},'Open')));
+    });
+    var sel=h('select',{id:'neglect-days',onchange:function(ev){ S.neglectDays=parseInt(ev.target.value,10)||0; save(); renderAll(); }},
+      [[0,'Off'],[1,'1 day'],[2,'2 days'],[3,'3 days'],[5,'5 days'],[7,'7 days'],[14,'14 days']].map(function(o){ return h('option',{value:o[0],selected:o[0]===S.neglectDays?'selected':false},o[1]); }));
+    c.append(h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field',style:'flex:0 1 180px'},h('label',{for:'neglect-days'},'Flag a bird with no log after'),sel)));
+    c.append(h('p',{class:'note',style:'margin-bottom:0'},'The flag shows here and on Today while the app is open. Push alerts on your phone need the installed app and are a later stage.'));
+    return c;
+  }
+
   function renderToday(){
     var root=document.getElementById('tab-today'); root.textContent='';
     var b=bird(); if(!b){ renderFirst(); return; }
     root.append(banner('Ratings below are for'));
+    var nb=neglectBanner(); if(nb) root.append(nb);
     root.append(flightCard(b));
     root.append(locCard());
     if(note) root.append(h('div',{class:'warn',role:'status'},note));
@@ -585,7 +621,7 @@ if(typeof module!=='undefined') module.exports=FP;
   function flightCard(b){
     var when=h('input',{id:'f-when',type:'datetime-local',value:nowInput()}),
       outcome=h('select',{id:'f-out'},['Good','OK','Poor'].map(function(x){return h('option',{value:x},x);})),
-      game=h('input',{id:'f-game',type:'number',min:'0',step:'1',value:'0',inputmode:'numeric'}), slips=h('input',{id:'f-slips',type:'number',min:'0',step:'1',inputmode:'numeric',placeholder:'Optional'}),
+      game=h('input',{id:'f-game',type:'number',min:'0',step:'1',value:'0',inputmode:'numeric'}), wt=h('input',{id:'f-weight',type:'number',step:'any',inputmode:'decimal',placeholder:(function(){ var w=FP.weightStats(S.log.filter(function(e){return e.birdId===b.id;})); return w?'Last '+FP.fmtWeight(w.last,S.unit):'Optional'; })()}), slips=h('input',{id:'f-slips',type:'number',min:'0',step:'1',inputmode:'numeric',placeholder:'Optional'}),
       quarry=h('input',{id:'f-quarry',placeholder:'Example: gray squirrel'}),
       t=h('input',{id:'f-temp',type:'number',step:'any'}), w=h('input',{id:'f-wind',type:'number',step:'any'}), g=h('input',{id:'f-gust',type:'number',step:'any'}), p=h('input',{id:'f-pop',type:'number',step:'any'}),
       txt=h('input',{id:'f-note',placeholder:'Optional: where, how it flew'}), wxnote=h('p',{class:'note',style:'margin:6px 0 0',id:'f-wxnote'}), err=h('p',{class:'note',role:'alert',id:'f-err'});
@@ -602,6 +638,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return h('details',{class:'card',id:'flightcard'},h('summary',null,'Log flight'),
       h('p',{class:'note'},'Saving to ',dot(b),h('b',null,' '+b.name),'. After five good flights, the Log tab suggests limits based on what you actually flew in. Nothing changes unless you accept it.'),
       h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:'f-when'},'When'),when),h('div',{class:'field'},h('label',{for:'f-out'},'How it went'),outcome)),
+      h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field',style:'flex:1 1 200px'},h('label',{for:'f-weight'},'Weight ('+S.unit+')'),wt),h('p',{class:'note',style:'flex:2 1 200px;margin:auto 0 0'},'Saved to '+b.name+'\'s weight log too, so you only enter it once. Leave blank to skip.')),
       h('div',{class:'row',style:'margin-top:10px'},
         h('div',{class:'field',style:'flex:0 1 110px'},h('label',{for:'f-game'},'Game taken'),game),h('div',{class:'field',style:'flex:0 1 130px'},h('label',{for:'f-slips'},'Slips (chases)'),slips),
         h('div',{class:'field',style:'flex:2 1 160px'},h('label',{for:'f-quarry'},'Quarry'),quarry)),
@@ -615,9 +652,12 @@ if(typeof module!=='undefined') module.exports=FP;
           if(vals.some(isNaN)){ err.textContent='Fill in temp, wind, gusts and rain chance. Load the forecast above to fill them in, or type them.'; return; }
           var gm=Math.max(0,parseInt(game.value,10)||0), sl=slips.value===''?null:Math.max(0,parseInt(slips.value,10)||0);
           if(sl!==null&&sl<gm){ err.textContent='Slips can\'t be fewer than game taken. Leave slips empty if you don\'t know.'; return; }
-          S.log.push({id:Date.now()+''+Math.random().toString(36).slice(2,6),birdId:b.id,type:'flight',ts:when.value||nowInput(),outcome:outcome.value,game:gm,slips:sl,quarry:quarry.value.trim(),
-            temp:vals[0],wind:vals[1],gust:vals[2],pop:vals[3],precip:0,text:txt.value.trim()});
-          save(); err.textContent='Saved to '+b.name+'\'s log.'; game.value='0'; slips.value=''; }},'Save flight')),err);
+          var wv=wt.value===''?null:num(wt.value,NaN); if(wv!==null&&(isNaN(wv)||wv<=0)){ err.textContent='Weight must be a number above zero, or leave it blank.'; return; }
+          var ts=when.value||nowInput(), wg=wv===null?null:FP.toGrams(wv,S.unit), uid=Date.now()+''+Math.random().toString(36).slice(2,6);
+          S.log.push({id:uid,birdId:b.id,type:'flight',ts:ts,outcome:outcome.value,game:gm,slips:sl,quarry:quarry.value.trim(),
+            temp:vals[0],wind:vals[1],gust:vals[2],pop:vals[3],precip:0,text:txt.value.trim(),weightG:wg});
+          if(wg!==null) S.log.push({id:uid+'w',birdId:b.id,type:'weight',ts:ts,grams:wg,text:'From flight log'});
+          save(); err.textContent='Saved to '+b.name+'\'s log'+(wg!==null?' with weight.':'.'); game.value='0'; slips.value=''; wt.value=''; }},'Save flight')),err);
   }
   function manualCard(b){
     var f={temp:h('input',{id:'m-temp',type:'number',value:'45'}),wind:h('input',{id:'m-wind',type:'number',value:'8'}),gust:h('input',{id:'m-gust',type:'number',value:'14'}),pop:h('input',{id:'m-pop',type:'number',value:'10'})};
@@ -687,7 +727,8 @@ if(typeof module!=='undefined') module.exports=FP;
   function renderLog(){
     var root=document.getElementById('tab-log'); root.textContent='';
     var b=bird(), mine=S.log.filter(function(e){return e.birdId===b.id;}), ws=FP.weightStats(mine);
-    root.append(banner('Records below are for'));
+    root.append(lastLoggedCard());
+    var bn=banner('Records below are for'); root.append(bn);
     root.append(successCard(b,mine));
     var stats=h('div',{class:'stats'});
     stats.append(h('div',{class:'stat'},h('b',null,ws?FP.fmtWeight(ws.last,S.unit):'No weights yet'),h('span',null,'Latest weight')));
@@ -724,14 +765,13 @@ if(typeof module!=='undefined') module.exports=FP;
         if(e.type==='hunt'){ if(!quarry.value.trim()){ err.textContent='Enter the quarry.'; return; } e.quarry=quarry.value.trim(); e.result=result.value; e.count=Math.max(1,parseInt(count.value,10)||1); }
         if(e.type==='note'&&!e.text){ err.textContent='Write a note.'; return; }
         S.log.push(e); save(); renderLog(); }},'Save to '+b.name+'\'s log')),err);
-    sync(); root.append(form);
+    sync(); root.insertBefore(form,bn);
 
     var list=mine.slice().sort(function(a,c){return a.ts<c.ts?1:a.ts>c.ts?-1:0;}).slice(0,40);
     var lc=h('div',{class:'card'},h('h2',null,'Recent entries, '+b.name));
     if(!list.length) lc.append(h('p',{class:'note'},'Nothing logged for '+b.name+' yet.'));
     list.forEach(function(e){
-      var title=e.type==='weight'?'Weight '+FP.fmtWeight(e.grams,S.unit):e.type==='feed'?'Fed '+e.food+(e.amount?', '+e.amount+' g':''):e.type==='hunt'?'Hunt: '+e.result+', '+e.quarry+(e.count>1?' x'+e.count:''):
-        e.type==='flight'?'Flight: '+e.outcome+', '+(e.game||0)+' game'+(e.quarry?' ('+e.quarry+')':'')+(e.slips!=null?', '+e.slips+' slips':''):'Note';
+      var title=entryTitle(e);
       var wx=e.type==='flight'?Math.round(e.temp)+'F, wind '+Math.round(e.wind)+' mph, gusts '+Math.round(e.gust)+', rain chance '+Math.round(e.pop)+'%':null;
       lc.append(h('div',{class:'item'},h('div',null,h('div',{class:'t'},title),h('div',{class:'m'},LOGTYPES[e.type]+' · '+e.ts.replace('T',' ')),wx?h('div',{class:'m'},wx):null,e.text?h('div',{class:'m'},e.text):null),
         h('button',{class:'btn ghost small',type:'button','aria-label':'Delete entry',onclick:function(){ S.log=S.log.filter(function(x){return x.id!==e.id;}); save(); renderLog(); }},'Delete')));
@@ -768,8 +808,8 @@ if(typeof module!=='undefined') module.exports=FP;
           var ics=FP.toICS(S.entries.filter(function(e){return FP.daysUntil(e.end||e.date)>=0;}),TYPES); box.value=ics;
           try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); a.download='stoop-calendar.ics'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){}
           try{ navigator.clipboard.writeText(ics); }catch(e){} icsNote.textContent='Calendar file text is in the box below. If no download started, copy the text into a file ending in .ics and open it with Apple Calendar, Outlook, or Google Calendar.'; }},'Calendar file (.ics) for phone or Outlook'),
-        h('button',{class:'btn ghost small',id:'c-export',type:'button',onclick:function(){ box.value=JSON.stringify({entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit}); box.select(); try{ navigator.clipboard.writeText(box.value); }catch(e){} icsNote.textContent='Backup text is in the box below.'; }},'Show and copy backup'),
-        h('button',{class:'btn ghost small',id:'c-import',type:'button',onclick:function(){ try{ var j=JSON.parse(box.value); if(j.entries&&j.birds){ S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; S=migrate(S); save(); renderAll(); } else throw 0; }catch(e){ box.value='That is not a valid backup. Paste the full backup text.'; } }},'Restore from text')),icsNote,box));
+        h('button',{class:'btn ghost small',id:'c-export',type:'button',onclick:function(){ box.value=JSON.stringify({entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit,neglectDays:S.neglectDays}); box.select(); try{ navigator.clipboard.writeText(box.value); }catch(e){} icsNote.textContent='Backup text is in the box below.'; }},'Show and copy backup'),
+        h('button',{class:'btn ghost small',id:'c-import',type:'button',onclick:function(){ try{ var j=JSON.parse(box.value); if(j.entries&&j.birds){ S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; S=migrate(S); save(); renderAll(); } else throw 0; }catch(e){ box.value='That is not a valid backup. Paste the full backup text.'; } }},'Restore from text')),icsNote,box));
   }
   function listCard(title,items,empty){
     var c=h('div',{class:'card'},h('h2',null,title));
