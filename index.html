@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-s3kG/AtqbCVYf8cD4blWp1v4wW9LRhAp3TQJdNDVS2Q='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-Mqu1gv8DzpwxSxXOg9dU44YE3IyiqBDm405abeZClOc='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -416,7 +416,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.7', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.8', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -1210,9 +1210,18 @@ if(typeof module!=='undefined') module.exports=FP;
       tbody.append(h('tr',null,h('td',null,l[1]),h('td',null,String(sp[k])),h('td',null,inp),h('td',null,String(cur[k])),h('td',null,flownOf[k]||(fr?'':'No good flights yet'))));
     });
     root.append(h('div',{class:'card'},h('h2',null,b.name+' compared with the species'),
-      h('p',{class:'note',style:'margin-top:0'},'The species column is the starter value for '+sp.name+'. Type a number in the '+b.name+' column to override it for this bird. Leave it empty to use the species value. "Flown in" shows what '+b.name+' has done in good flights.'),
+      h('p',{class:'note',style:'margin-top:0'},'The species column is a cautious starter value for '+sp.name+', a rule of thumb, not taken from a published study or regulation. Type a number in the '+b.name+' column to override it for this bird. Leave it empty to use the species value. "Flown in" shows what '+b.name+' has done in good flights.'),
       h('div',{class:'tbl'},h('table',{class:'cmp'},h('thead',null,h('tr',null,h('th',null,'Limit'),h('th',null,sp.name),h('th',null,b.name+' (yours)'),h('th',null,'Used now'),h('th',null,'Flown in'))),tbody)),
       h('div',{class:'row',style:'margin-top:10px'},h('button',{class:'btn ghost small',id:'b-reset',type:'button',onclick:function(){ b.limits={}; save(); renderBirds(); }},'Reset to species values'))));
+    function ref(href,label){ return h('a',{href:href,target:'_blank',rel:'noopener noreferrer'},label); }
+    root.append(h('details',{class:'card',id:'limit-sources'},h('summary',null,'Where do the starter limits come from?'),
+      h('p',{class:'note'},'Honest answer: no published source gives safe go or no-go flying weather for each species, so none of these numbers is cited. They are cautious rules of thumb we chose for the beta, and they are the first thing to override. Your sponsor, your bird\'s history and your own judgment beat them.'),
+      h('p',{class:'note'},'Real research exists on how raptors handle weather, but it measures resting metabolism and body temperature, not safe flying conditions, so it cannot give limits. Starting points if you want to read it:'),
+      h('ul',{class:'reasons'},
+        h('li',null,ref('https://sora.unm.edu/sites/default/files/journals/condor/v088n01/p0057-p0062.pdf','Energetics and temperature regulation in falconiform birds (The Condor, 1986)')),
+        h('li',null,ref('https://sora.unm.edu/sites/default/files/journals/jrr/v010n04/p00097-p00103.pdf','Raptor energetics: a review (Raptor Research, 1976)')),
+        h('li',null,ref('https://dx.doi.org/10.1088/1748-3190/ad3264','Aerodynamic response of a red-tailed hawk to discrete transverse gusts (Bioinspiration and Biomimetics, 2024)'))),
+      h('p',{class:'note',style:'margin-bottom:0'},'Rows marked in your own column are your numbers. After five good flights the Log tab can suggest limits from what you actually flew in. Tell us through Feedback if you have a source we should cite.')));
 
     var rm=h('button',{class:'btn ghost small',id:'b-remove',type:'button',onclick:function(){
       if(removing!==b.id){ removing=b.id; rm.textContent='Tap again to remove '+b.name+' and its log'; return; }
