@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dXObJbjOySQ6yU82Wa+dBhWLLgxoHKoS0f2SaWMcCuM=' 'sha256-XgXhhSkZIj9h1XPrMCRCJfl7UI5xNjB11+3VfPzoYQY='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-CFIu1fLw8l4b1oxDbbhrAqFTs7kEauJDAJkdv2y9ZR0='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -396,7 +396,7 @@ var FP = (function(){
     explainWindow:explainWindow,parseAll:parseAll,parseForecast:parseForecast,hourAt:hourAt,demoForecast:demoForecast,futureFrom:futureFrom,
     housingAlerts:housingAlerts,toGrams:toGrams,fromGrams:fromGrams,fmtWeight:fmtWeight,weightStats:weightStats,
     seasonStart:seasonStart,flightStats:flightStats,flownRange:flownRange,suggestLimits:suggestLimits,
-    toICS:toICS,googleLink:googleLink,addDay:addDay,daysUntil:daysUntil,whenText:whenText,seasonStatus:seasonStatus,REF_NC:REF_NC};
+    toICS:toICS,googleLink:googleLink,REF_PACKS:{NC:REF_NC},addDay:addDay,daysUntil:daysUntil,whenText:whenText,seasonStatus:seasonStatus,REF_NC:REF_NC};
 })();
 if(typeof module!=='undefined') module.exports=FP;
 </script>
@@ -412,7 +412,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.2', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.3', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -420,6 +420,8 @@ if(typeof module!=='undefined') module.exports=FP;
   function sint(v,lo,hi,d){ var n=sfin(v,lo,hi); return n===null?d:Math.round(n); }
   function sdate(v){ return (typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))?v:''; }
   function sts(v){ return (typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(v))?v:null; }
+  var STATES={AL:'Alabama',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
+  var PACK_NOTES={NC:'North Carolina starter dates come from the NC Falconers Guild events page and the NC extended falconry season table, each with its source. The source pages do not state every year, so verify against the official guide before you plan around them.'};
   function sanitize(s){
     var out={}, used={}, idmap={};
     function uniq(base){ var id=base, n=1; while(used[id]){ id=base+'-'+(n++); } used[id]=1; return id; }
@@ -453,6 +455,7 @@ if(typeof module!=='undefined') module.exports=FP;
     out.loc={name:sstr(loc.name,80)||'Newton, NC area (default, change it)',lat:sfin(loc.lat,-90,90)===null?35.66:loc.lat,lon:sfin(loc.lon,-180,180)===null?-81.22:loc.lon};
     out.birdId=idmap[s.birdId]||(out.birds.length?out.birds[0].id:null);
     out.unit=s.unit==='oz'?'oz':'g'; out.theme=s.theme==='light'?'light':'dark'; out.tab=['today','log','cal','birds'].indexOf(s.tab)>=0?s.tab:'today';
+    out.state=(typeof s.state==='string'&&Object.prototype.hasOwnProperty.call(STATES,s.state))?s.state:'';
     out.neglectDays=sint(s.neglectDays,0,60,3); out.lastBackup=sstr(s.lastBackup,40);
     out.betaAck=sint(s.betaAck,0,99,0); out.betaAckAt=sstr(s.betaAckAt,10); out.fbPromptDone=s.fbPromptDone===true;
     out.shareUsage=s.shareUsage===true; out.installId=(typeof s.installId==='string'&&/^[a-f0-9]{16}$/.test(s.installId))?s.installId:''; if(!out.installId) out.shareUsage=false; out.usageSentAt=sstr(s.usageSentAt,40);
@@ -1006,20 +1009,39 @@ if(typeof module!=='undefined') module.exports=FP;
           save(); renderCal(); }},'Add')),err));
     var list=S.entries.slice().sort(function(a,b){return a.date<b.date?-1:a.date>b.date?1:0;}), up=[],pa=[];
     list.forEach(function(e){ (FP.daysUntil(e.end||e.date)<0?pa:up).push(e); });
-    root.append(listCard('Upcoming and open',up,'Nothing yet. Load the North Carolina starter dates below, or add your own.'));
+    root.append(listCard('Upcoming and open',up,'Nothing yet. Pick your state below for starter falconry dates, or add your own.'));
     if(pa.length) root.append(listCard('Past',pa,''));
     var box=h('textarea',{id:'c-json','aria-label':'Backup or calendar file text'}), icsNote=h('p',{class:'note',role:'status'});
+    (function(){
+      var sel=h('select',{id:'c-state','aria-label':'Your state'},[h('option',{value:''},'Choose your state')].concat(Object.keys(STATES).map(function(k){ return h('option',{value:k},STATES[k]); })));
+      sel.value=S.state||'';
+      var card=h('div',{class:'card',id:'state-card'},h('h2',null,'Your state'),
+        h('p',{class:'note',style:'margin-top:0'},'Falconry seasons and rules differ by state. Pick yours and the app offers starter dates when we have them. Continental US only for now. Dates are starting points checked by hand, not the law: always confirm with your state wildlife agency.'),
+        h('div',{class:'field'},h('label',{for:'c-state'},'State'),sel));
+      var area=h('div',{style:'margin-top:10px'}); card.append(area);
+      function draw(){
+        area.textContent=''; var st=S.state; if(!st) return;
+        var pack=FP.REF_PACKS[st];
+        if(pack){
+          area.append(h('p',{class:'note',style:'margin-top:0'},PACK_NOTES[st]||''),
+            h('button',{class:'btn small',id:'c-load',type:'button',onclick:function(){ var have={}; S.entries.forEach(function(e){have[e.id]=1;}); pack.forEach(function(r){ if(!have[r.id]) S.entries.push(JSON.parse(JSON.stringify(r))); }); save(); renderCal(); }},'Load '+STATES[st]+' starter dates'));
+        } else {
+          area.append(h('p',{class:'note',style:'margin-top:0'},'We do not have verified falconry season dates for '+STATES[st]+' yet, and we would rather show nothing than guess. Add your own dates for now, and check your state wildlife agency for the official season. Want us to add '+STATES[st]+' sooner? Tell us.'),
+            h('button',{class:'btn small',id:'c-request',type:'button',onclick:function(){ openFeedback('Please add falconry seasons for '+STATES[st]+'.'); }},'Request '+STATES[st]));
+        }
+      }
+      sel.addEventListener('change',function(){ S.state=sel.value; save(); draw(); }); draw();
+      root.append(card);
+    })();
     root.append(h('div',{class:'card'},h('h2',null,'Data and calendar sync'),
       h('p',{class:'note',style:'margin-top:0'},'Each date has an Add to Google Calendar link. The .ics file works with Apple Calendar, Outlook and others and includes every upcoming date, with a 7-day reminder on permits. Live two-way sync needs a hosted version and is a later stage.'),
-      h('p',{class:'note'},'North Carolina starter dates come from the NC Falconers Guild events page and the NC extended falconry season table, each with its source. The source pages do not state every year, so verify against the official guide before you plan around them. Your falconry license renewal date was not on a public page, so add yours as a permit.'),
       h('div',{class:'row',style:'margin-bottom:8px'},
-        h('button',{class:'btn small',id:'c-nc',type:'button',onclick:function(){ var have={}; S.entries.forEach(function(e){have[e.id]=1;}); FP.REF_NC.forEach(function(r){ if(!have[r.id]) S.entries.push(JSON.parse(JSON.stringify(r))); }); save(); renderCal(); }},'Load North Carolina starter dates'),
         h('button',{class:'btn small',id:'c-ics',type:'button',onclick:function(){
           var ics=FP.toICS(S.entries.filter(function(e){return FP.daysUntil(e.end||e.date)>=0;}),TYPES); box.value=ics;
           try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([ics],{type:'text/calendar'})); a.download='stoop-calendar.ics'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){}
           try{ navigator.clipboard.writeText(ics); }catch(e){} icsNote.textContent='Calendar file text is in the box below. If no download started, copy the text into a file ending in .ics and open it with Apple Calendar, Outlook, or Google Calendar.'; }},'Calendar file (.ics) for phone or Outlook'),
-        h('button',{class:'btn ghost small',id:'c-export',type:'button',onclick:function(){ box.value=JSON.stringify({entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit,neglectDays:S.neglectDays}); box.select(); try{ navigator.clipboard.writeText(box.value); }catch(e){} icsNote.textContent='Backup text is in the box below.'; }},'Show and copy backup'),
-        h('button',{class:'btn ghost small',id:'c-import',type:'button',onclick:function(){ try{ if(box.value.length>8000000) throw 0; var j=JSON.parse(box.value); if(j&&Array.isArray(j.entries)&&Array.isArray(j.birds)){ S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; S=migrate(S); save(); renderAll(); } else throw 0; }catch(e){ box.value='That is not a valid backup. Paste the full backup text.'; } }},'Restore from text')),fileBackup(),icsNote,box));
+        h('button',{class:'btn ghost small',id:'c-export',type:'button',onclick:function(){ box.value=JSON.stringify({entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit,neglectDays:S.neglectDays,state:S.state}); box.select(); try{ navigator.clipboard.writeText(box.value); }catch(e){} icsNote.textContent='Backup text is in the box below.'; }},'Show and copy backup'),
+        h('button',{class:'btn ghost small',id:'c-import',type:'button',onclick:function(){ try{ if(box.value.length>8000000) throw 0; var j=JSON.parse(box.value); if(j&&Array.isArray(j.entries)&&Array.isArray(j.birds)){ S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; if(typeof j.state==='string') S.state=j.state; S=migrate(S); save(); renderAll(); } else throw 0; }catch(e){ box.value='That is not a valid backup. Paste the full backup text.'; } }},'Restore from text')),fileBackup(),icsNote,box));
   }
   function fileBackup(){
     var note=h('p',{class:'note',role:'status',id:'bk-note'}), pending=null, apply=h('button',{class:'btn small',id:'bk-apply',type:'button',hidden:'hidden'},'Replace my data with this file');
@@ -1030,7 +1052,7 @@ if(typeof module!=='undefined') module.exports=FP;
           pending=j; apply.hidden=false; note.textContent='That file has '+j.birds.length+' bird'+(j.birds.length===1?'':'s')+', '+(j.log||[]).length+' log entries and '+j.entries.length+' calendar dates'+(j.savedAt?' (saved '+String(j.savedAt).slice(0,10)+')':'')+'. Restoring replaces what is in the app now. Download a backup first if you are not sure.';
         }catch(e){ pending=null; apply.hidden=true; note.textContent='That is not a Stoop backup file.'; } };
       rd.readAsText(f); ev.target.value=''; }});
-    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab,shareUsage:S.shareUsage,installId:S.installId,usageSentAt:S.usageSentAt,fbDay:S.fbDay,fbCount:S.fbCount}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
+    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab,shareUsage:S.shareUsage,installId:S.installId,usageSentAt:S.usageSentAt,fbDay:S.fbDay,fbCount:S.fbCount,state:S.state}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
     function stamp(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
     return h('div',{style:'margin:6px 0'},
       h('div',{class:'row'},
@@ -1164,7 +1186,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var last=S.usageSentAt?Date.parse(S.usageSentAt):0; if(last&&Date.now()-last<7*86400000) return;
     try{ postToInbox('[Stoop usage] '+S.installId.slice(0,8),usageText()).then(function(){ S.usageSentAt=new Date().toISOString(); save(); },function(){}); }catch(e){}
   }
-  function openFeedback(){
+  function openFeedback(pre){
     bump('feedbackOpens');
     var type=h('select',{id:'fb-type'},['Something is broken','Something is confusing','I have an idea','Something I love','Other'].map(function(x){ return h('option',{value:x},x); })),
       msg=h('textarea',{id:'fb-msg',maxlength:'2000',style:'min-height:110px;font-family:inherit;font-size:1rem',placeholder:'What happened? What did you expect? Please leave out names, permit numbers and addresses.'}),
@@ -1172,6 +1194,7 @@ if(typeof module!=='undefined') module.exports=FP;
       diag=h('input',{id:'fb-diag',type:'checkbox',checked:'checked',style:'width:auto'}),
       share=h('input',{id:'fb-share',type:'checkbox',style:'width:auto',checked:S.shareUsage?'checked':false}),
       prev=h('textarea',{id:'fb-preview',readonly:'readonly','aria-label':'Exactly what will be sent'}), note=h('p',{class:'note',role:'status',id:'fb-note'}), shareNote=h('p',{class:'note',id:'fb-share-note',style:'margin:0 0 10px'});
+    if(typeof pre==='string'){ type.value='I have an idea'; msg.value=pre; }
     function validMail(){ return mail.value.trim()===''||/^[^\s@]{1,64}@[^\s@]{1,190}$/.test(mail.value.trim()); }
     function text(){ return 'Stoop feedback\nType: '+type.value+'\n\n'+(msg.value.trim()||'(no message yet)')+(mail.value.trim()?'\n\nReply to: '+mail.value.trim():'')+(diag.checked?'\n\n--- Diagnostics (no names, location, weights or notes) ---\n'+diagnostics():''); }
     function refresh(){ prev.value=text(); shareNote.textContent=S.shareUsage?'Usage sharing is on. About once a week this is sent: '+usageText().replace(/\n/g,' | '):'Usage sharing is off. Nothing is sent unless you press Send.'; } [type,msg,mail,diag].forEach(function(e){ e.addEventListener('input',refresh); e.addEventListener('change',refresh); }); refresh();
