@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-jmUeDR8cDJrVv1zb3OEgD0aAwJLJc5+S5Oj02Xu556M='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-sg5ozqnP8nmWHba4QbEMjZnSEXe2CK4Lc9AzvAAsBiA='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -412,7 +412,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.4', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.4', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
