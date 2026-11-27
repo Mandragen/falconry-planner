@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-sg5ozqnP8nmWHba4QbEMjZnSEXe2CK4Lc9AzvAAsBiA='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-opqToBdywsXh6Q8g+g/sP2NTbOAWTiwqR/jdqDEA5pM='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -413,7 +413,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.4', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.5', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -457,7 +457,7 @@ if(typeof module!=='undefined') module.exports=FP;
     out.birdId=idmap[s.birdId]||(out.birds.length?out.birds[0].id:null);
     out.unit=s.unit==='oz'?'oz':'g'; out.theme=s.theme==='light'?'light':'dark'; out.tab=['today','log','cal','birds'].indexOf(s.tab)>=0?s.tab:'today';
     out.state=(typeof s.state==='string'&&Object.prototype.hasOwnProperty.call(STATES,s.state))?s.state:'';
-    out.neglectDays=sint(s.neglectDays,0,60,3); out.lastBackup=sstr(s.lastBackup,40);
+    out.neglectDays=sint(s.neglectDays,0,60,3); out.lastBackup=sstr(s.lastBackup,40); out.bkSnooze=sstr(s.bkSnooze,40);
     out.betaAck=sint(s.betaAck,0,99,0); out.betaAckAt=sstr(s.betaAckAt,10); out.fbPromptDone=s.fbPromptDone===true;
     out.shareUsage=s.shareUsage===true; out.installId=(typeof s.installId==='string'&&/^[a-f0-9]{16}$/.test(s.installId))?s.installId:''; if(!out.installId) out.shareUsage=false; out.usageSentAt=sstr(s.usageSentAt,40);
     out.fbDay=sdate(s.fbDay); out.fbCount=sint(s.fbCount,0,100,0);
@@ -484,7 +484,32 @@ if(typeof module!=='undefined') module.exports=FP;
     if(!s.birds.some(function(b){return b.id===s.birdId;})) s.birdId=s.birds.length?s.birds[0].id:null;
     return sanitize(s);
   }
-  function load(){ try{ var r=localStorage.getItem(KEY); if(r){ var s=JSON.parse(r); if(s&&typeof s==='object') return migrate(s); } }catch(e){} return migrate(mem||defaults()); }
+  function load(){ try{ var r=localStorage.getItem(KEY); if(r){ var s=JSON.parse(r); if(s&&typeof s==='object'){
+      try{ if(localStorage.getItem(KEY+'.ver')!==APP_VERSION){ if(r.length<2500000) localStorage.setItem(KEY+'.prev',r); localStorage.setItem(KEY+'.ver',APP_VERSION); } }catch(e){}
+      return migrate(s); } } }catch(e){} return migrate(mem||defaults()); }
+  var persistState='unknown';
+  function askPersist(){ try{ if(navigator.storage&&navigator.storage.persisted){ navigator.storage.persisted().then(function(p){ if(p){ persistState='yes'; return; } if(navigator.storage.persist) navigator.storage.persist().then(function(g){ persistState=g?'yes':'no'; },function(){}); else persistState='no'; },function(){}); } }catch(e){} }
+  function stampDate(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+  function downloadBackup(){
+    var data=JSON.stringify({app:'stoop',version:1,savedAt:new Date().toISOString(),entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit,neglectDays:S.neglectDays,state:S.state});
+    try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download='stoop-backup-'+stampDate()+'.json'; document.body.appendChild(a); a.click(); a.remove(); S.lastBackup=new Date().toISOString(); bump('backups'); return true; }catch(e){ return false; }
+  }
+  function backupDue(){
+    if(S.betaAck!==BETA_VERSION||!S.log.length) return null;
+    var now=Date.now(), last=S.lastBackup?Date.parse(S.lastBackup):0;
+    if(last&&now-last<7*86400000) return null;
+    var sn=S.bkSnooze?Date.parse(S.bkSnooze):0; if(sn&&now-sn<3*86400000) return null;
+    return {never:!last,days:last?Math.floor((now-last)/86400000):null};
+  }
+  function backupNudge(){
+    var d=backupDue(); if(!d) return null;
+    var msg=h('p',{class:'note',style:'margin:4px 0 8px'},(d.never?'You have no backup yet. ':'Your last backup was '+d.days+' days ago. ')+'Your '+S.log.length+' log entr'+(S.log.length===1?'y':'ies')+' are saved only in this browser. If it is cleared or you switch phones, they are gone. One tap saves a file you can keep safe.');
+    var card=h('div',{class:'card alert L1',role:'status',id:'backup-nudge'},h('h2',null,'Back up your data'),msg);
+    var row=h('div',{class:'row'},
+      h('button',{class:'btn small',id:'nudge-go',type:'button',onclick:function(){ if(downloadBackup()){ msg.textContent='Backup file saved to your downloads. Keep it somewhere safe, like your email or a cloud drive.'; row.remove(); } else { msg.textContent='Could not start a download here. Open the Calendar tab and use Show and copy backup instead.'; } }},'Download backup now'),
+      h('button',{class:'btn ghost small',id:'nudge-later',type:'button',onclick:function(){ S.bkSnooze=new Date().toISOString(); save(); card.remove(); }},'Remind me later'));
+    card.append(row); return card;
+  }
   var S=load();
   (function(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;},k=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); var u=S.usage; if(u.lastDay!==k){ u.days++; u.lastDay=k; if(!u.firstDay) u.firstDay=k; } })();
   function bump(k,sub){ var u=S.usage; if(sub){ u.tabs[sub]=Math.min(1e6,(u.tabs[sub]||0)+1); } else u[k]=Math.min(1e6,(u[k]||0)+1); save(); }
@@ -584,6 +609,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var b=bird(); if(!b){ renderFirst(); return; }
     root.append(banner('Ratings below are for'));
     var nb=neglectBanner(); if(nb) root.append(nb);
+    var bnu=backupNudge(); if(bnu) root.append(bnu);
     var pc=promptCard(); if(pc) root.append(pc);
     root.append(flightCard(b));
     root.append(locCard());
@@ -943,6 +969,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var root=document.getElementById('tab-log'); root.textContent='';
     var b=bird(), mine=S.log.filter(function(e){return e.birdId===b.id;}), ws=FP.weightStats(mine);
     root.append(lastLoggedCard());
+    var bnl=backupNudge(); if(bnl) root.append(bnl);
     if(flash){ root.append(h('div',{class:'card',role:'status',id:'log-flash'},flash)); flash=''; }
     var bn=banner('Records below are for'); root.append(bn);
     root.append(successCard(b,mine));
@@ -1060,15 +1087,17 @@ if(typeof module!=='undefined') module.exports=FP;
           pending=j; apply.hidden=false; note.textContent='That file has '+j.birds.length+' bird'+(j.birds.length===1?'':'s')+', '+(j.log||[]).length+' log entries and '+j.entries.length+' calendar dates'+(j.savedAt?' (saved '+String(j.savedAt).slice(0,10)+')':'')+'. Restoring replaces what is in the app now. Download a backup first if you are not sure.';
         }catch(e){ pending=null; apply.hidden=true; note.textContent='That is not a Stoop backup file.'; } };
       rd.readAsText(f); ev.target.value=''; }});
-    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab,shareUsage:S.shareUsage,installId:S.installId,usageSentAt:S.usageSentAt,fbDay:S.fbDay,fbCount:S.fbCount,state:S.state}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
-    function stamp(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
+    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; if(typeof j.state==='string') S.state=j.state; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab,shareUsage:S.shareUsage,installId:S.installId,usageSentAt:S.usageSentAt,fbDay:S.fbDay,fbCount:S.fbCount,state:S.state,bkSnooze:S.bkSnooze}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
     return h('div',{style:'margin:6px 0'},
       h('div',{class:'row'},
         h('button',{class:'btn small',id:'bk-download',type:'button',onclick:function(){
-          var data=JSON.stringify({app:'stoop',version:1,savedAt:new Date().toISOString(),entries:S.entries,birds:S.birds,loc:S.loc,birdId:S.birdId,log:S.log,unit:S.unit,neglectDays:S.neglectDays});
-          try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/json'})); a.download='stoop-backup-'+stamp()+'.json'; document.body.appendChild(a); a.click(); a.remove(); S.lastBackup=new Date().toISOString(); bump('backups'); note.textContent='Backup file saved to your downloads. Keep it somewhere safe, like your email or cloud drive. It contains all your birds and logs.'; }catch(e){ note.textContent='Could not start a download here. Use Show and copy backup below instead.'; } }},'Download backup file'),
+          note.textContent=downloadBackup()?'Backup file saved to your downloads. Keep it somewhere safe, like your email or cloud drive. It contains all your birds and logs.':'Could not start a download here. Use Show and copy backup below instead.'; }},'Download backup file'),
         h('button',{class:'btn ghost small',id:'bk-pick',type:'button',onclick:function(){ pick.click(); }},'Restore from file'),apply,pick),
-      h('p',{class:'note',style:'margin:6px 0 0'},'Your data lives only in this browser on this device. Clearing browser data or switching phones loses it unless you have a backup. Last backup file: '+(S.lastBackup?String(S.lastBackup).slice(0,10):'never')+'.'),note);
+      h('p',{class:'note',style:'margin:6px 0 0'},'Your data lives only in this browser, on this device, for this web address. Clearing browser data, a private window, switching phones or browsers, or adding Stoop to your Home Screen starts you empty (on iPhone the Home Screen app has its own separate storage: download a backup first, then restore inside it). Last backup file: '+(S.lastBackup?String(S.lastBackup).slice(0,10):'never')+'.'),
+      h('p',{class:'note',style:'margin:6px 0 0',id:'bk-protect'},persistState==='yes'?'Your browser has marked this data as protected from automatic cleanup. A backup file is still the only real safety net.':'Your browser may delete this data if the device runs low on space, and iPhone Safari can clear it if you do not open Stoop for about a week. A backup file is the only real protection.'),
+      (function(){ var prev=null; try{ prev=localStorage.getItem(KEY+'.prev'); }catch(e){} if(!prev) return null;
+        return h('div',{class:'row',style:'margin-top:6px'},h('button',{class:'btn ghost small',id:'bk-prev',type:'button',onclick:function(){ try{ var a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([prev],{type:'application/json'})); a.download='stoop-safety-copy-'+stampDate()+'.json'; document.body.appendChild(a); a.click(); a.remove(); note.textContent='Safety copy downloaded. It is the data as it was before the last app update. Use Restore from file to load it.'; }catch(e){ note.textContent='Could not start a download here.'; } }},'Download safety copy from before the last update'));
+      })(),note);
   }
   function listCard(title,items,empty){
     var c=h('div',{class:'card'},h('h2',null,title));
@@ -1149,7 +1178,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return ['This is an unfinished beta. It can be wrong, change without notice, or lose your data. Download a backup file often (Calendar tab).',
       'Not advice. Go/no-go ratings, starter limits, outlooks and charts are rough guides built from forecast data and guesses. They are not husbandry, veterinary, legal or regulatory advice. You are responsible for your bird, your permits and following the law. Check season dates and rules with the official source.',
       'Forecasts come from Open-Meteo and can be wrong. To get one, the coordinates of your location are sent to Open-Meteo. Nothing else leaves your device unless you press Send in the feedback form or switch on anonymous usage sharing (off unless you choose it). Feedback is delivered to the maker by email through a form service, Web3Forms.',
-      'Your birds, logs and notes stay in this browser on this device. There are no accounts. Do not enter permit numbers, home addresses or other people\'s personal details.',
+      'Your birds, logs and notes are saved only in this browser, on this device, for this web address. Switching browsers, devices or addresses, a private window, adding Stoop to your Home Screen, or clearing browser data starts you empty, and there is no way for us to get it back. Download a backup file often and before any of those. There are no accounts. Do not enter permit numbers, home addresses or other people\'s personal details.',
       'Reports and exports are self-reported logbooks, not certified or verified records.',
       'Provided as is, with no warranties. To the fullest extent the law allows, the maker is not liable for losses from using it. Use is free during the beta.',
       'Stoop, its design, text and code are copyrighted, all rights reserved. Please do not copy or redistribute them.'];
@@ -1253,6 +1282,7 @@ if(typeof module!=='undefined') module.exports=FP;
   }
   renderAll();
   if(S.betaAck===BETA_VERSION) fetchForecast();
+  if(S.betaAck===BETA_VERSION) askPersist();
   sendUsageIfDue();
 })();
 </script>
