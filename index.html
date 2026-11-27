@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CDOIgq8BRSXc5q6puazJo1ouLLLu7xy+WBiQzVnrlbc=' 'sha256-GQVEnijT+oXw12937MU8HRxdGVI6Sjx0c7H9v/qh2jQ='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-pOmZfBvZQILpe9FTVVlQ7hD+yOE+ksLwzMnSY5YwxfQ='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -392,12 +392,15 @@ var FP = (function(){
     {id:'ref-nc-fal-woodcock-2',title:'NC extended falconry: woodcock (part 2)',type:'season',date:'2027-02-01',end:'2027-02-20',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'},
     {id:'ref-nc-fal-ducks-2',title:'NC extended falconry: ducks, mergansers, coots (part 2)',type:'season',date:'2027-02-01',end:'2027-02-06',notes:'Daily limit 3. Verify the year.',src:'https://www.eregulations.com/northcarolina/hunting/migratory-game-bird-seasons'}
   ];
+  var REF_VA=[
+    {id:'ref-va-season-2026',title:'VA falconry season: nonmigratory game birds and game animals',type:'season',date:'2026-10-01',end:'2027-03-31',notes:'Oct 1 through Mar 31, both dates inclusive (4VAC15-250-80). Migratory birds follow their own seasons and federal rules. Verify with Virginia DWR.',src:'https://law.lis.virginia.gov/admincode/title4/agency15/chapter250/section80/'}
+  ];
   return {LIMIT_KEYS:LIMIT_KEYS,SPECIES:SPECIES,DEMO_NAMES:DEMO_NAMES,COLORS:COLORS,speciesById:speciesById,effective:effective,
     outlook:outlook,rate:rate,scoreHour:scoreHour,hourLabel:hourLabel,endLabel:endLabel,dayLabel:dayLabel,bestWindow:bestWindow,pickWindow:pickWindow,
     explainWindow:explainWindow,parseAll:parseAll,parseForecast:parseForecast,hourAt:hourAt,demoForecast:demoForecast,futureFrom:futureFrom,
     housingAlerts:housingAlerts,toGrams:toGrams,fromGrams:fromGrams,fmtWeight:fmtWeight,weightStats:weightStats,
     seasonStart:seasonStart,flightStats:flightStats,flownRange:flownRange,suggestLimits:suggestLimits,
-    toICS:toICS,googleLink:googleLink,REF_PACKS:{NC:REF_NC},addDay:addDay,daysUntil:daysUntil,whenText:whenText,seasonStatus:seasonStatus,REF_NC:REF_NC};
+    toICS:toICS,googleLink:googleLink,REF_PACKS:{NC:REF_NC,VA:REF_VA},addDay:addDay,daysUntil:daysUntil,whenText:whenText,seasonStatus:seasonStatus,REF_NC:REF_NC};
 })();
 if(typeof module!=='undefined') module.exports=FP;
 </script>
@@ -422,7 +425,7 @@ if(typeof module!=='undefined') module.exports=FP;
   function sdate(v){ return (typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v))?v:''; }
   function sts(v){ return (typeof v==='string'&&/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(v))?v:null; }
   var STATES={AL:'Alabama',AZ:'Arizona',AR:'Arkansas',CA:'California',CO:'Colorado',CT:'Connecticut',DE:'Delaware',DC:'District of Columbia',FL:'Florida',GA:'Georgia',ID:'Idaho',IL:'Illinois',IN:'Indiana',IA:'Iowa',KS:'Kansas',KY:'Kentucky',LA:'Louisiana',ME:'Maine',MD:'Maryland',MA:'Massachusetts',MI:'Michigan',MN:'Minnesota',MS:'Mississippi',MO:'Missouri',MT:'Montana',NE:'Nebraska',NV:'Nevada',NH:'New Hampshire',NJ:'New Jersey',NM:'New Mexico',NY:'New York',NC:'North Carolina',ND:'North Dakota',OH:'Ohio',OK:'Oklahoma',OR:'Oregon',PA:'Pennsylvania',RI:'Rhode Island',SC:'South Carolina',SD:'South Dakota',TN:'Tennessee',TX:'Texas',UT:'Utah',VT:'Vermont',VA:'Virginia',WA:'Washington',WV:'West Virginia',WI:'Wisconsin',WY:'Wyoming'};
-  var PACK_NOTES={NC:'North Carolina starter dates come from the NC Falconers Guild events page and the NC extended falconry season table, each with its source. The source pages do not state every year, so verify against the official guide before you plan around them.'};
+  var PACK_NOTES={NC:'North Carolina starter dates come from the NC Falconers Guild events page and the NC extended falconry season table, each with its source. The source pages do not state every year, so verify against the official guide before you plan around them.',VA:'Virginia starter date is the statewide falconry season for nonmigratory game from the Virginia Administrative Code (4VAC15-250-80). Migratory bird seasons, falconry meets and any passage peregrine window are not in this pack yet. Verify with Virginia DWR before you plan around it.'};
   function sanitize(s){
     var out={}, used={}, idmap={};
     function uniq(base){ var id=base, n=1; while(used[id]){ id=base+'-'+(n++); } used[id]=1; return id; }
