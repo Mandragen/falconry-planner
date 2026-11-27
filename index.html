@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-pOmZfBvZQILpe9FTVVlQ7hD+yOE+ksLwzMnSY5YwxfQ='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-s3kG/AtqbCVYf8cD4blWp1v4wW9LRhAp3TQJdNDVS2Q='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -416,7 +416,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.6', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.7', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -973,12 +973,67 @@ if(typeof module!=='undefined') module.exports=FP;
       h('button',{class:'btn',id:'f-apply',type:'button',onclick:function(){ ['minTemp','maxTemp','maxWind','maxGust','maxPop'].forEach(function(k){ b.limits[k]=s[k]; }); save(); renderLog(); }},'Use these as '+b.name+'\'s limits'));
     return c;
   }
+  var undoDel=null;
+  function gToField(g){ return S.unit==='oz'?(g/28.3495).toFixed(2):String(Math.round(g)); }
+  function entryItem(e){
+    var box=h('div',{class:'item'});
+    function view(){
+      box.textContent='';
+      var wx=e.type==='flight'?Math.round(e.temp)+'F, wind '+Math.round(e.wind)+' mph, gusts '+Math.round(e.gust)+', rain chance '+Math.round(e.pop)+'%':null;
+      box.append(h('div',null,h('div',{class:'t'},entryTitle(e)),h('div',{class:'m'},LOGTYPES[e.type]+' \u00b7 '+e.ts.replace('T',' ')),wx?h('div',{class:'m'},wx):null,e.text?h('div',{class:'m'},e.text):null),
+        h('div',{class:'row',style:'flex-wrap:nowrap;gap:6px'},
+          h('button',{class:'btn ghost small',type:'button','aria-label':'Edit entry',onclick:edit},'Edit'),
+          h('button',{class:'btn ghost small',type:'button','aria-label':'Delete entry',onclick:function(){
+            var idx=S.log.findIndex(function(x){return x.id===e.id;}); if(idx<0) return;
+            undoDel={entry:e,idx:idx,title:entryTitle(e)}; S.log.splice(idx,1); save(); renderLog(); }},'Delete')));
+    }
+    function edit(){
+      var P='ed-'+e.id+'-', err=h('p',{class:'note',role:'alert'}), f={};
+      function fld(label,input,flex){ return h('div',{class:'field',style:'flex:'+(flex||'1 1 130px')},h('label',{for:input.id},label),input); }
+      f.when=h('input',{id:P+'when',type:'datetime-local',value:e.ts});
+      f.text=h('input',{id:P+'text',value:e.text||''});
+      var rows=[h('div',{class:'row'},fld('When',f.when,'2 1 200px'),fld('Notes',f.text,'2 1 200px'))];
+      if(e.type==='weight'){ f.w=h('input',{id:P+'w',type:'number',step:'any',inputmode:'decimal',value:gToField(e.grams)}); rows.push(h('div',{class:'row',style:'margin-top:8px'},fld('Weight ('+S.unit+')',f.w))); }
+      if(e.type==='feed'){ f.food=h('input',{id:P+'food',value:e.food||''}); f.amt=h('input',{id:P+'amt',type:'number',step:'any',inputmode:'decimal',value:e.amount==null?'':e.amount}); rows.push(h('div',{class:'row',style:'margin-top:8px'},fld('Food',f.food,'2 1 160px'),fld('Amount (g)',f.amt))); }
+      if(e.type==='flight'){
+        f.out=h('select',{id:P+'out'},['Good','OK','Poor'].map(function(x){return h('option',{value:x,selected:x===e.outcome?'selected':false},x);}));
+        function numIn(k,v,mn){ return h('input',{id:P+k,type:'number',min:mn,step:'1',inputmode:'numeric',value:v==null?'':v}); }
+        f.game=numIn('game',e.game||0,'0'); f.slips=numIn('slips',e.slips,'0'); f.nfl=numIn('nfl',e.flights,'1'); f.mins=numIn('mins',e.mins,'1');
+        f.quarry=h('input',{id:P+'quarry',value:e.quarry||''});
+        f.temp=h('input',{id:P+'temp',type:'number',step:'any',value:e.temp}); f.wind=h('input',{id:P+'wind',type:'number',step:'any',value:e.wind}); f.gust=h('input',{id:P+'gust',type:'number',step:'any',value:e.gust}); f.pop=h('input',{id:P+'pop',type:'number',step:'any',value:e.pop});
+        rows.push(h('div',{class:'row',style:'margin-top:8px'},fld('How the bird flew (your call)',f.out,'1 1 160px'),fld('Game taken',f.game,'0 1 110px'),fld('Slips',f.slips,'0 1 110px'),fld('Quarry',f.quarry,'2 1 150px')));
+        rows.push(h('div',{class:'row',style:'margin-top:8px'},fld('Flights',f.nfl,'0 1 110px'),fld('Minutes out',f.mins,'0 1 110px'),fld('Temp (F)',f.temp,'0 1 100px'),fld('Wind (mph)',f.wind,'0 1 100px'),fld('Gusts (mph)',f.gust,'0 1 100px'),fld('Rain %',f.pop,'0 1 100px')));
+        rows.push(h('p',{class:'note',style:'margin:6px 0 0'},'The weight saved with a flight is its own entry in this timeline. Edit it there.'));
+      }
+      box.textContent='';
+      box.append(h('div',{style:'width:100%'},h('div',{class:'t'},'Edit '+LOGTYPES[e.type].toLowerCase()),rows,
+        h('div',{class:'row',style:'margin-top:10px'},
+          h('button',{class:'btn small',id:P+'save',type:'button',onclick:function(){
+            var ts=f.when.value; if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(ts)){ err.textContent='Pick a date and time.'; return; }
+            var n={text:f.text.value.trim().slice(0,1000)};
+            if(e.type==='weight'){ var v=num(f.w.value,NaN); if(isNaN(v)||v<=0){ err.textContent='Enter a weight above zero.'; return; } n.grams=FP.toGrams(v,S.unit); }
+            if(e.type==='feed'){ if(!f.food.value.trim()){ err.textContent='Enter the food.'; return; } n.food=f.food.value.trim().slice(0,80); n.amount=f.amt.value===''?null:num(f.amt.value,null); }
+            if(e.type==='flight'){
+              var vals=[f.temp,f.wind,f.gust,f.pop].map(function(x){return parseFloat(x.value);}); if(vals.some(isNaN)){ err.textContent='Fill in temp, wind, gusts and rain chance.'; return; }
+              var gm=Math.max(0,parseInt(f.game.value,10)||0), sl=f.slips.value===''?null:Math.max(0,parseInt(f.slips.value,10)||0);
+              if(sl!==null&&sl<gm){ err.textContent='Slips can\'t be fewer than game taken. Leave slips empty if you don\'t know.'; return; }
+              n.outcome=f.out.value; n.game=Math.min(99,gm); n.slips=sl; n.quarry=f.quarry.value.trim().slice(0,80);
+              n.flights=f.nfl.value===''?null:Math.max(1,Math.min(99,parseInt(f.nfl.value,10)||1)); n.mins=f.mins.value===''?null:Math.max(1,Math.min(600,parseInt(f.mins.value,10)||1));
+              n.temp=vals[0]; n.wind=vals[1]; n.gust=vals[2]; n.pop=vals[3];
+            }
+            e.ts=ts; Object.keys(n).forEach(function(k){ e[k]=n[k]; }); save(); flash='Entry updated.'; renderLog(); }},'Save changes'),
+          h('button',{class:'btn ghost small',type:'button',onclick:view},'Cancel')),err));
+    }
+    view(); return box;
+  }
   function renderLog(){
     var root=document.getElementById('tab-log'); root.textContent='';
     var b=bird(), mine=S.log.filter(function(e){return e.birdId===b.id;}), ws=FP.weightStats(mine);
     root.append(lastLoggedCard());
     var bnl=backupNudge(); if(bnl) root.append(bnl);
     if(flash){ root.append(h('div',{class:'card',role:'status',id:'log-flash'},flash)); flash=''; }
+    if(undoDel){ var ud=undoDel; undoDel=null; var ucard=h('div',{class:'card',role:'status',id:'undo-card'},h('p',{class:'note',style:'margin:0 0 8px'},'Deleted: '+ud.title+'.'),
+      h('button',{class:'btn small',id:'undo-btn',type:'button',onclick:function(){ S.log.splice(Math.min(ud.idx,S.log.length),0,ud.entry); save(); flash='Entry restored.'; renderLog(); }},'Undo')); root.append(ucard); }
     var bn=banner('Records below are for'); root.append(bn);
     root.append(successCard(b,mine));
     var stats=h('div',{class:'stats'});
@@ -1026,12 +1081,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var list=mine.slice().sort(function(a,c){return a.ts<c.ts?1:a.ts>c.ts?-1:0;}).slice(0,40);
     var lc=h('div',{class:'card'},h('h2',null,'Recent entries, '+b.name),h('p',{class:'note',style:'margin-top:0'},'One timeline for '+b.name+': weights, feedings, flights and notes from every place you log show up here once.'));
     if(!list.length) lc.append(h('p',{class:'note'},'Nothing logged for '+b.name+' yet.'));
-    list.forEach(function(e){
-      var title=entryTitle(e);
-      var wx=e.type==='flight'?Math.round(e.temp)+'F, wind '+Math.round(e.wind)+' mph, gusts '+Math.round(e.gust)+', rain chance '+Math.round(e.pop)+'%':null;
-      lc.append(h('div',{class:'item'},h('div',null,h('div',{class:'t'},title),h('div',{class:'m'},LOGTYPES[e.type]+' · '+e.ts.replace('T',' ')),wx?h('div',{class:'m'},wx):null,e.text?h('div',{class:'m'},e.text):null),
-        h('button',{class:'btn ghost small',type:'button','aria-label':'Delete entry',onclick:function(){ S.log=S.log.filter(function(x){return x.id!==e.id;}); save(); renderLog(); }},'Delete')));
-    });
+    list.forEach(function(e){ lc.append(entryItem(e)); });
     root.append(lc);
   }
 
