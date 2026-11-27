@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hnGyHhdzHZOJS4Ii7uCn2t/1pj0ifCu4q89ACvEnuFs=' 'sha256-vHGvr7EFJ4Xg9RuViA58QNdzLKFiyoTu7F5yURxq3cU='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hnGyHhdzHZOJS4Ii7uCn2t/1pj0ifCu4q89ACvEnuFs=' 'sha256-X3LEfjRCYyqJv/LlCnNXbR2GbctuPkrvo0Lu+99cSFU='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -416,7 +416,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.9', BETA_VERSION=4, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.10', BETA_VERSION=4, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -843,6 +843,40 @@ if(typeof module!=='undefined') module.exports=FP;
     [t0,t0+(t1-t0)/2,t1].forEach(function(ms,k){ var t=svgEl('text',{x:k===0?L:k===2?W-R:X(ms),y:H-4,'text-anchor':k===0?'start':k===2?'end':'middle'}); t.textContent=md(ms,long); svg.append(t); });
     return svg;
   }
+  /* Outings per week since the season started (Sep 1). Filled = game taken. */
+  function seasonWeeksChart(b,mine,W,H){
+    var start=new Date(FP.seasonStart(new Date())+'T00:00:00').getTime(), now=Date.now(), WK=7*86400000;
+    var outs=mine.filter(function(e){ return (e.type==='flight'||e.type==='hunt')&&new Date(e.ts).getTime()>=start; });
+    if(!outs.length) return null;
+    var n=Math.min(60,Math.max(1,Math.floor((now-start)/WK)+1)), bins=[]; for(var i=0;i<n;i++) bins.push({a:0,g:0});
+    outs.forEach(function(e){ var k=Math.floor((new Date(e.ts).getTime()-start)/WK); if(k<0||k>=n) return; var got=e.type==='flight'?(e.game>0):(e.result==='Caught'); if(got) bins[k].g++; else bins[k].a++; });
+    var mx=Math.max.apply(null,bins.map(function(x){return x.a+x.g;}))||1, L=30,R=8,T=10,B=24, bw=(W-L-R)/n;
+    function Y(v){ return T+(mx-v)/mx*(H-T-B); }
+    var svg=svgEl('svg',{viewBox:'0 0 '+W+' '+H,class:'chart',role:'img','aria-label':'Outings per week this season for '+b.name,width:'100%'});
+    var ticks=mx<=4?[0,mx]:[0,Math.round(mx/2),mx]; ticks.forEach(function(v){ svg.append(svgEl('line',{x1:L,x2:W-R,y1:Y(v),y2:Y(v),style:'stroke:var(--line)','stroke-width':1})); var t=svgEl('text',{x:L-4,y:Y(v)+3,'text-anchor':'end'}); t.textContent=v; svg.append(t); });
+    bins.forEach(function(x,i){ var x0=L+i*bw+bw*0.15, w=bw*0.7, wkStart=start+i*WK, tot=x.a+x.g;
+      var lbl='Week of '+md(wkStart)+': '+tot+' outing'+(tot===1?'':'s')+', '+x.g+' with game';
+      if(x.g){ svg.append(svgTitle(svgEl('rect',{x:x0,y:Y(x.g),width:w,height:Y(0)-Y(x.g),style:'fill:'+b.color+';stroke:'+b.color+';stroke-width:1'}),lbl)); }
+      if(x.a){ svg.append(svgTitle(svgEl('rect',{x:x0,y:Y(x.g+x.a),width:w,height:Y(x.g)-Y(x.g+x.a),style:'fill:none;stroke:'+b.color+';stroke-width:1.5'}),lbl)); } });
+    [0,Math.floor((n-1)/2),n-1].filter(function(v,i,a){return a.indexOf(v)===i;}).forEach(function(i,k,arr){ var t=svgEl('text',{x:i===0?L:i===n-1?W-R:L+i*bw+bw/2,y:H-6,'text-anchor':i===0?'start':i===n-1?'end':'middle'}); t.textContent=md(start+i*WK); svg.append(t); });
+    return svg;
+  }
+  /* Change from one weigh-in day to the next, signed bars about zero. */
+  function swingChart(b,mine,cut,W,H){
+    var byDay={}; mine.filter(function(e){return e.type==='weight'&&inRange(e,cut?cut-14*86400000:0);}).sort(function(a,c){return a.ts<c.ts?-1:a.ts>c.ts?1:0;}).forEach(function(e){ byDay[e.ts.slice(0,10)]=e; });
+    var days=Object.keys(byDay).sort(), d=[];
+    for(var i=1;i<days.length;i++){ var cur=byDay[days[i]], prev=byDay[days[i-1]]; if(cut&&new Date(cur.ts).getTime()<cut) continue; d.push({ts:cur.ts,delta:cur.grams-prev.grams,gap:Math.round((new Date(days[i])-new Date(days[i-1]))/86400000)}); }
+    if(d.length<2) return null;
+    var mx=Math.max.apply(null,d.map(function(x){return Math.abs(FP.fromGrams(x.delta,S.unit)-0);}))||1, L=38,R=8,T=10,B=24, bw=(W-L-R)/d.length, mid=T+(H-T-B)/2;
+    function Y(v){ return mid-(v/mx)*((H-T-B)/2); }
+    var svg=svgEl('svg',{viewBox:'0 0 '+W+' '+H,class:'chart',role:'img','aria-label':'Change between weigh-ins for '+b.name,width:'100%'});
+    [-mx,0,mx].forEach(function(v){ svg.append(svgEl('line',{x1:L,x2:W-R,y1:Y(v),y2:Y(v),style:'stroke:var(--line)','stroke-width':v===0?1.6:1})); var t=svgEl('text',{x:L-4,y:Y(v)+3,'text-anchor':'end'}); t.textContent=(v>0?'+':'')+(S.unit==='oz'?v.toFixed(1):Math.round(v)); svg.append(t); });
+    d.forEach(function(x,i){ var v=FP.fromGrams(x.delta,S.unit), x0=L+i*bw+bw*0.15, w=Math.max(2,bw*0.7), y=Y(Math.max(v,0)), h2=Math.max(1,Math.abs(Y(v)-Y(0)));
+      svg.append(svgTitle(svgEl('rect',{x:x0,y:v>=0?y:Y(0),width:w,height:h2,style:'fill:'+b.color}),x.ts.slice(0,10)+': '+fmtDelta(x.delta)+(x.gap>1?' over '+x.gap+' days':''))); });
+    var t0=new Date(d[0].ts).getTime(), t1=new Date(d[d.length-1].ts).getTime();
+    [[L,'start',t0],[W-R,'end',t1]].forEach(function(a){ var t=svgEl('text',{x:a[0],y:H-6,'text-anchor':a[1]}); t.textContent=md(a[2]); svg.append(t); });
+    return {svg:svg,avg:d.reduce(function(s2,x){return s2+Math.abs(x.delta);},0)/d.length,n:d.length};
+  }
   var WEIGHT_LEGEND=['▲ Flight (solid = game taken)','◆ Hunt (solid = caught)','■ Feeding','Dashed line = target weight'];
   /* Conditions flown in: temperature against wind, one mark per flight, with the bird's current limits shaded. */
   function conditionsChart(b,mine,cut,W,H){
@@ -1051,6 +1085,12 @@ if(typeof module!=='undefined') module.exports=FP;
       weightEventsChart(b,mine,cut,360,200),legendRow(WEIGHT_LEGEND));
     if(!ws) chartCard.append(h('p',{class:'note'},'Set a target weight on the Birds tab to draw a line on the chart.'));
     root.append(chartCard);
+    var sw=swingChart(b,mine,cut,360,170);
+    root.append(h('div',{class:'card',id:'swing-card'},h('h2',null,'Weight swing, '+b.name),
+      sw?h('div',null,sw.svg,h('p',{class:'note',style:'margin:6px 0 0'},'Each bar is the change from one weigh-in day to the next, above zero up and below zero down. Average swing '+(S.unit==='oz'?(sw.avg/28.3495).toFixed(1)+' oz':Math.round(sw.avg)+' g')+' across '+sw.n+' weigh-ins. It is a record of what you logged, not advice on what to do.')):h('p',{class:'note'},'Needs weigh-ins on at least three different days in this range.')));
+    var sk=seasonWeeksChart(b,mine,360,170);
+    root.append(h('div',{class:'card',id:'season-card'},h('h2',null,'Season by week, '+b.name),
+      sk?h('div',null,sk,h('p',{class:'note',style:'margin:6px 0 0'},'Outings per week since September 1. Filled means game taken, outlined means none. Hunts and flights both count.')):h('p',{class:'note'},'No outings logged since September 1.')));
     root.append(h('div',{class:'card'},h('h2',null,'Conditions '+b.name+' flew in'),conditionsChart(b,mine,cut,360,220),legendRow(COND_LEGEND),
       h('p',{class:'note',style:'margin:4px 0 0'},'One mark per flight. Tap or hover a mark for details. Gusts and rain chance are not shown here.')));
     root.append(h('div',{class:'card'},h('h2',null,'Logging activity, '+b.name),activityBlock(b,mine)));
