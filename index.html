@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dXObJbjOySQ6yU82Wa+dBhWLLgxoHKoS0f2SaWMcCuM=' 'sha256-mY/wapW6KaDcnxctFn2iajtU+kk/xqoPj3jEi8Fn9As='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com; img-src data:; form-action 'none'; base-uri 'none'"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dXObJbjOySQ6yU82Wa+dBhWLLgxoHKoS0f2SaWMcCuM=' 'sha256-mY/wapW6KaDcnxctFn2iajtU+kk/xqoPj3jEi8Fn9As='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-dXObJbjOySQ6yU82Wa+dBhWLLgxoHKoS0f2SaWMcCuM=' 'sha256-XgXhhSkZIj9h1XPrMCRCJfl7UI5xNjB11+3VfPzoYQY='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -412,7 +412,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.1', BETA_VERSION=1, FEEDBACK_FORM_URL='' /* set to an https form link to enable the form button */;
+  var APP_VERSION='v0.4.0-beta.2', BETA_VERSION=2, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -455,6 +455,8 @@ if(typeof module!=='undefined') module.exports=FP;
     out.unit=s.unit==='oz'?'oz':'g'; out.theme=s.theme==='light'?'light':'dark'; out.tab=['today','log','cal','birds'].indexOf(s.tab)>=0?s.tab:'today';
     out.neglectDays=sint(s.neglectDays,0,60,3); out.lastBackup=sstr(s.lastBackup,40);
     out.betaAck=sint(s.betaAck,0,99,0); out.betaAckAt=sstr(s.betaAckAt,10); out.fbPromptDone=s.fbPromptDone===true;
+    out.shareUsage=s.shareUsage===true; out.installId=(typeof s.installId==='string'&&/^[a-f0-9]{16}$/.test(s.installId))?s.installId:''; if(!out.installId) out.shareUsage=false; out.usageSentAt=sstr(s.usageSentAt,40);
+    out.fbDay=sdate(s.fbDay); out.fbCount=sint(s.fbCount,0,100,0);
     var u=(s.usage&&typeof s.usage==='object')?s.usage:{}, t=(u.tabs&&typeof u.tabs==='object')?u.tabs:{};
     out.usage={days:sint(u.days,0,100000,0),firstDay:sdate(u.firstDay),lastDay:sdate(u.lastDay),tabs:{today:sint(t.today,0,1e6,0),log:sint(t.log,0,1e6,0),cal:sint(t.cal,0,1e6,0),birds:sint(t.birds,0,1e6,0)},
       reports:sint(u.reports,0,1e6,0),backups:sint(u.backups,0,1e6,0),restores:sint(u.restores,0,1e6,0),feedbackOpens:sint(u.feedbackOpens,0,1e6,0)};
@@ -1028,7 +1030,7 @@ if(typeof module!=='undefined') module.exports=FP;
           pending=j; apply.hidden=false; note.textContent='That file has '+j.birds.length+' bird'+(j.birds.length===1?'':'s')+', '+(j.log||[]).length+' log entries and '+j.entries.length+' calendar dates'+(j.savedAt?' (saved '+String(j.savedAt).slice(0,10)+')':'')+'. Restoring replaces what is in the app now. Download a backup first if you are not sure.';
         }catch(e){ pending=null; apply.hidden=true; note.textContent='That is not a Stoop backup file.'; } };
       rd.readAsText(f); ev.target.value=''; }});
-    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
+    apply.addEventListener('click',function(){ if(!pending) return; var j=pending; S.entries=j.entries; S.birds=j.birds; S.loc=j.loc||S.loc; S.birdId=j.birdId||S.birdId; S.log=j.log||[]; S.unit=j.unit||S.unit; if(typeof j.neglectDays==='number') S.neglectDays=j.neglectDays; var keep={usage:S.usage,betaAck:S.betaAck,betaAckAt:S.betaAckAt,lastBackup:S.lastBackup,fbPromptDone:S.fbPromptDone,theme:S.theme,tab:S.tab,shareUsage:S.shareUsage,installId:S.installId,usageSentAt:S.usageSentAt,fbDay:S.fbDay,fbCount:S.fbCount}; for(var kk in keep) S[kk]=keep[kk]; S=migrate(S); bump('restores'); pending=null; renderAll(); });
     function stamp(){ var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); }
     return h('div',{style:'margin:6px 0'},
       h('div',{class:'row'},
@@ -1116,7 +1118,7 @@ if(typeof module!=='undefined') module.exports=FP;
   function betaPoints(){
     return ['This is an unfinished beta. It can be wrong, change without notice, or lose your data. Download a backup file often (Calendar tab).',
       'Not advice. Go/no-go ratings, starter limits, outlooks and charts are rough guides built from forecast data and guesses. They are not husbandry, veterinary, legal or regulatory advice. You are responsible for your bird, your permits and following the law. Check season dates and rules with the official source.',
-      'Forecasts come from Open-Meteo and can be wrong. To get one, the coordinates of your location are sent to Open-Meteo. Nothing else leaves your device unless you choose to send feedback.',
+      'Forecasts come from Open-Meteo and can be wrong. To get one, the coordinates of your location are sent to Open-Meteo. Nothing else leaves your device unless you press Send in the feedback form or switch on anonymous usage sharing (off unless you choose it). Feedback is delivered to the maker by email through a form service, Web3Forms.',
       'Your birds, logs and notes stay in this browser on this device. There are no accounts. Do not enter permit numbers, home addresses or other people\'s personal details.',
       'Reports and exports are self-reported logbooks, not certified or verified records.',
       'Provided as is, with no warranties. To the fullest extent the law allows, the maker is not liable for losses from using it. Use is free during the beta.',
@@ -1128,10 +1130,12 @@ if(typeof module!=='undefined') module.exports=FP;
     TABS.forEach(function(x){ document.getElementById('tab-'+x[0]).hidden=true; });
     var root=document.getElementById('tab-today'); root.hidden=false; root.textContent='';
     var cb=h('input',{id:'beta-ok',type:'checkbox',style:'width:auto;margin-top:3px'}), go=h('button',{class:'btn',id:'beta-go',type:'button',disabled:'disabled'},'Continue to Stoop');
+    var share=h('input',{id:'beta-share',type:'checkbox',style:'width:auto;margin-top:3px'});
     cb.addEventListener('change',function(){ if(cb.checked) go.removeAttribute('disabled'); else go.setAttribute('disabled','disabled'); });
-    go.addEventListener('click',function(){ if(!cb.checked) return; var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; S.betaAck=BETA_VERSION; S.betaAckAt=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); save(); renderAll(); fetchForecast(); });
+    go.addEventListener('click',function(){ if(!cb.checked) return; var d=new Date(),p=function(n){return (n<10?'0':'')+n;}; S.betaAck=BETA_VERSION; S.betaAckAt=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); setShare(share.checked); save(); renderAll(); fetchForecast(); sendUsageIfDue(); });
     root.append(h('div',{class:'card',id:'beta-card'},h('h2',null,'Before you start: Stoop is a beta'),betaList(),
-      h('label',{for:'beta-ok',style:'display:flex;gap:8px;align-items:flex-start;margin:12px 0;color:var(--ink);font-size:.95rem;font-weight:400'},cb,'I understand and agree to use the beta on these terms.'),go));
+      h('label',{for:'beta-ok',style:'display:flex;gap:8px;align-items:flex-start;margin:12px 0 6px;color:var(--ink);font-size:.95rem;font-weight:400'},cb,'I understand and agree to use the beta on these terms.'),
+      h('label',{for:'beta-share',style:'display:flex;gap:8px;align-items:flex-start;margin:6px 0 12px;color:var(--ink);font-size:.95rem;font-weight:400'},share,'Optional: help improve Stoop by sharing anonymous usage counts about once a week (which features are used, how often). No names, locations, weights or notes, and you can switch it off any time in Feedback.'),go));
   }
   function diagnostics(){
     var c={}; S.log.forEach(function(e){ c[e.type]=(c[e.type]||0)+1; }); var sp={}; S.birds.forEach(function(b){ sp[b.speciesId]=(sp[b.speciesId]||0)+1; }); var u=S.usage;
@@ -1141,26 +1145,57 @@ if(typeof module!=='undefined') module.exports=FP;
       'Days used: '+u.days+(u.firstDay?' since '+u.firstDay:''),'Tab opens: '+JSON.stringify(u.tabs),'Reports opened: '+u.reports+', backups downloaded: '+u.backups+', restores: '+u.restores,
       'Forecast status: '+(typeof source!=='undefined'&&source?source:'not loaded')].join('\n');
   }
+  /* ---------- sending: one small helper, used for feedback and (opt-in) usage ---------- */
+  function newId(){ var a=new Uint8Array(8); (window.crypto||window.msCrypto).getRandomValues(a); return Array.prototype.map.call(a,function(x){ return ('0'+x.toString(16)).slice(-2); }).join(''); }
+  function setShare(on){ if(on){ if(!S.installId) S.installId=newId(); S.shareUsage=true; } else { S.shareUsage=false; S.installId=''; S.usageSentAt=''; } }
+  function canSend(){ return /^[0-9a-fA-F-]{20,60}$/.test(FEEDBACK_KEY); }
+  function postToInbox(subject,message,replyTo){
+    var body={access_key:FEEDBACK_KEY,subject:subject,from_name:'Stoop beta',message:message,botcheck:''}; if(replyTo) body.email=replyTo;
+    return fetch(FEEDBACK_ENDPOINT,{method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},body:JSON.stringify(body)}).then(function(r){
+      return r.json().then(function(j){ return j; },function(){ return {}; }).then(function(j){ if(!r.ok||j.success===false) throw new Error('send failed'); return j; }); });
+  }
+  function usageText(){
+    var c={}; S.log.forEach(function(e){ c[e.type]=(c[e.type]||0)+1; }); var sp={}; S.birds.forEach(function(b){ sp[b.speciesId]=(sp[b.speciesId]||0)+1; }); var u=S.usage;
+    return ['Stoop anonymous usage','Install: '+S.installId,'App: '+APP_VERSION,'First day: '+(u.firstDay||'')+', days used: '+u.days,'Tab opens: '+JSON.stringify(u.tabs),'Reports opened: '+u.reports+', backups: '+u.backups+', restores: '+u.restores,
+      'Birds: '+S.birds.length+' '+JSON.stringify(sp),'Log entries by type: '+JSON.stringify(c),'Calendar dates: '+S.entries.length,'Theme: '+S.theme+', unit: '+S.unit,'Neglect flag days: '+S.neglectDays].join('\n');
+  }
+  function sendUsageIfDue(){
+    if(!S.shareUsage||!S.installId||!canSend()||S.betaAck!==BETA_VERSION) return;
+    var last=S.usageSentAt?Date.parse(S.usageSentAt):0; if(last&&Date.now()-last<7*86400000) return;
+    try{ postToInbox('[Stoop usage] '+S.installId.slice(0,8),usageText()).then(function(){ S.usageSentAt=new Date().toISOString(); save(); },function(){}); }catch(e){}
+  }
   function openFeedback(){
     bump('feedbackOpens');
     var type=h('select',{id:'fb-type'},['Something is broken','Something is confusing','I have an idea','Something I love','Other'].map(function(x){ return h('option',{value:x},x); })),
       msg=h('textarea',{id:'fb-msg',maxlength:'2000',style:'min-height:110px;font-family:inherit;font-size:1rem',placeholder:'What happened? What did you expect? Please leave out names, permit numbers and addresses.'}),
+      mail=h('input',{id:'fb-mail',type:'email',maxlength:'120',autocomplete:'email',placeholder:'Optional, only if you want a reply'}),
       diag=h('input',{id:'fb-diag',type:'checkbox',checked:'checked',style:'width:auto'}),
-      prev=h('textarea',{id:'fb-preview',readonly:'readonly','aria-label':'Exactly what will be copied or sent'}), note=h('p',{class:'note',role:'status',id:'fb-note'});
-    function text(){ return 'Stoop feedback\nType: '+type.value+'\n\n'+(msg.value.trim()||'(no message yet)')+(diag.checked?'\n\n--- Diagnostics (no names, location, weights or notes) ---\n'+diagnostics():''); }
-    function refresh(){ prev.value=text(); } [type,msg,diag].forEach(function(e){ e.addEventListener('input',refresh); e.addEventListener('change',refresh); }); refresh();
-    function copy(){ refresh(); try{ navigator.clipboard.writeText(prev.value).then(function(){ note.textContent='Copied. Paste it wherever you are sending feedback.'; },function(){ prev.select(); note.textContent='Could not copy automatically. The text is selected, copy it by hand.'; }); }catch(e){ prev.select(); note.textContent='Could not copy automatically. The text is selected, copy it by hand.'; } }
-    var buttons=[h('button',{class:'btn',id:'fb-copy',type:'button',onclick:copy},'Copy feedback')];
-    if(/^https:\/\//.test(FEEDBACK_FORM_URL)) buttons.push(h('button',{class:'btn ghost',id:'fb-form',type:'button',onclick:function(){ copy(); window.open(FEEDBACK_FORM_URL,'_blank','noopener,noreferrer'); }},'Copy and open feedback form'));
-    buttons.push(h('button',{class:'btn ghost',id:'fb-gh',type:'button',onclick:function(){ refresh(); window.open('https://github.com/Mandragen/falconry-planner/issues/new?title='+encodeURIComponent('Beta feedback: '+type.value)+'&body='+encodeURIComponent(prev.value.slice(0,6000)),'_blank','noopener,noreferrer'); }},'Post on GitHub (public)'));
+      share=h('input',{id:'fb-share',type:'checkbox',style:'width:auto',checked:S.shareUsage?'checked':false}),
+      prev=h('textarea',{id:'fb-preview',readonly:'readonly','aria-label':'Exactly what will be sent'}), note=h('p',{class:'note',role:'status',id:'fb-note'}), shareNote=h('p',{class:'note',id:'fb-share-note',style:'margin:0 0 10px'});
+    function validMail(){ return mail.value.trim()===''||/^[^\s@]{1,64}@[^\s@]{1,190}$/.test(mail.value.trim()); }
+    function text(){ return 'Stoop feedback\nType: '+type.value+'\n\n'+(msg.value.trim()||'(no message yet)')+(mail.value.trim()?'\n\nReply to: '+mail.value.trim():'')+(diag.checked?'\n\n--- Diagnostics (no names, location, weights or notes) ---\n'+diagnostics():''); }
+    function refresh(){ prev.value=text(); shareNote.textContent=S.shareUsage?'Usage sharing is on. About once a week this is sent: '+usageText().replace(/\n/g,' | '):'Usage sharing is off. Nothing is sent unless you press Send.'; } [type,msg,mail,diag].forEach(function(e){ e.addEventListener('input',refresh); e.addEventListener('change',refresh); }); refresh();
+    share.addEventListener('change',function(){ setShare(share.checked); save(); refresh(); if(share.checked) sendUsageIfDue(); });
+    function copy(){ refresh(); try{ navigator.clipboard.writeText(prev.value).then(function(){ note.textContent='Copied.'; },function(){ prev.select(); note.textContent='Could not copy automatically. The text is selected, copy it by hand.'; }); }catch(e){ prev.select(); note.textContent='Could not copy automatically. The text is selected, copy it by hand.'; } }
+    var sending=false, send=h('button',{class:'btn',id:'fb-send',type:'button',onclick:function(){
+      if(sending) return; if(!msg.value.trim()){ note.textContent='Type a short message first.'; return; } if(!validMail()){ note.textContent='That email address does not look right. Fix it or leave it empty.'; return; }
+      var d=new Date(),pp=function(n){return (n<10?'0':'')+n;},day=d.getFullYear()+'-'+pp(d.getMonth()+1)+'-'+pp(d.getDate()); if(S.fbDay!==day){ S.fbDay=day; S.fbCount=0; } if(S.fbCount>=5){ note.textContent='That is five messages today, which is the limit. Please try again tomorrow, or use Copy.'; return; }
+      sending=true; send.setAttribute('disabled','disabled'); note.textContent='Sending...'; refresh();
+      postToInbox('Stoop beta feedback: '+type.value,prev.value,mail.value.trim()).then(function(){ S.fbCount++; save(); msg.value=''; refresh(); note.textContent='Sent. Thank you, it goes straight to the maker.'; sending=false; send.removeAttribute('disabled'); },
+        function(){ note.textContent='Could not send. Check your connection and try again, or use Copy and send it another way.'; sending=false; send.removeAttribute('disabled'); });
+    }},'Send feedback');
+    if(!canSend()){ send.setAttribute('disabled','disabled'); send.textContent='Sending not set up yet'; }
     openPanel('Send feedback',h('div',null,
-      h('p',{class:'note',style:'margin-top:0'},'Stoop is a beta and your feedback is how it gets better. Nothing is sent from the app by itself. You choose what goes in, check the preview below, then copy it or post it.'),
+      h('p',{class:'note',style:'margin-top:0'},'Stoop is a beta and your feedback is how it gets better. Write what you like, then check the preview below. It is sent only when you press Send, and it goes straight to the maker by email.'),
       h('div',{class:'field'},h('label',{for:'fb-type'},'What kind of feedback'),type),
       h('div',{class:'field',style:'margin-top:10px'},h('label',{for:'fb-msg'},'Your message'),msg),
+      h('div',{class:'field',style:'margin-top:10px'},h('label',{for:'fb-mail'},'Your email (optional)'),mail),
       h('label',{for:'fb-diag',style:'display:flex;gap:8px;align-items:center;margin:10px 0;color:var(--ink);font-weight:400'},diag,'Include diagnostics (app version, screen size, browser, counts of what you use)'),
-      h('div',{class:'field'},h('label',{for:'fb-preview'},'Preview: exactly what will be copied'),prev),
-      h('div',{class:'row',style:'margin-top:10px'},buttons),note,
-      h('p',{class:'note',style:'margin-bottom:0'},'Posting on GitHub is public and needs a GitHub account. Diagnostics never include bird names, location, weights, notes or anything you typed in the app. The counts come from your own device and are never uploaded on their own.')));
+      h('div',{class:'field'},h('label',{for:'fb-preview'},'Preview: exactly what will be sent'),prev),
+      h('div',{class:'row',style:'margin-top:10px'},send,h('button',{class:'btn ghost small',id:'fb-copy',type:'button',onclick:copy},'Copy instead')),note,
+      h('hr',{style:'border:0;border-top:1px solid var(--line);margin:12px 0'}),
+      h('label',{for:'fb-share',style:'display:flex;gap:8px;align-items:flex-start;margin:0 0 6px;color:var(--ink);font-weight:400'},share,'Share anonymous usage counts about once a week (optional, off by default)'),shareNote,
+      h('p',{class:'note',style:'margin-bottom:0'},'Feedback and usage counts are delivered by email through a form service (Web3Forms). Diagnostics and usage counts never include bird names, location, weights, notes or anything you typed in the app.')));
   }
   document.getElementById('fbbtn').addEventListener('click',openFeedback);
   function renderFoot(){
@@ -1187,6 +1222,7 @@ if(typeof module!=='undefined') module.exports=FP;
   }
   renderAll();
   if(S.tab==='today'&&S.betaAck===BETA_VERSION) fetchForecast();
+  sendUsageIfDue();
 })();
 </script>
 </body>
