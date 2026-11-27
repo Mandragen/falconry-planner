@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IUwW/qgWSEVIMzghTMSB/IfEsPvVyYUkoLKdrgpolSo=' 'sha256-opqToBdywsXh6Q8g+g/sP2NTbOAWTiwqR/jdqDEA5pM='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-CDOIgq8BRSXc5q6puazJo1ouLLLu7xy+WBiQzVnrlbc=' 'sha256-GQVEnijT+oXw12937MU8HRxdGVI6Sjx0c7H9v/qh2jQ='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -323,16 +323,16 @@ var FP = (function(){
   function flightStats(logs, now){
     var start=seasonStart(now||new Date());
     function agg(list){
-      var o={outings:0,taken:0,withGame:0,slips:0,takenWithSlips:0};
+      var o={outings:0,taken:0,withGame:0,slips:0,takenWithSlips:0,flights:0,mins:0,minsN:0};
       list.forEach(function(e){
         if(e.type==='flight'){
-          o.outings++; var g=Math.max(0,+e.game||0); o.taken+=g; if(g>0) o.withGame++;
+          o.outings++; var g=Math.max(0,+e.game||0); o.taken+=g; if(g>0) o.withGame++; o.flights+=(+e.flights>0?+e.flights:1); if(+e.mins>0){ o.mins+=+e.mins; o.minsN++; }
           if(e.slips!=null&&e.slips!==''&&+e.slips>0){ o.slips+=+e.slips; o.takenWithSlips+=g; }
         } else if(e.type==='hunt'){
           var c=e.count||1; o.outings++; if(e.result==='Caught'){ o.taken+=c; o.withGame++; o.slips+=c; o.takenWithSlips+=c; } else { o.slips+=1; }
         }
       });
-      o.rate=o.slips>0?o.takenWithSlips/o.slips:null; o.outingRate=o.outings>0?o.withGame/o.outings:null;
+      o.avgMins=o.minsN>0?Math.round(o.mins/o.minsN):null; o.rate=o.slips>0?o.takenWithSlips/o.slips:null; o.outingRate=o.outings>0?o.withGame/o.outings:null;
       return o;
     }
     var mine=logs.filter(function(e){return e.type==='flight'||e.type==='hunt';});
@@ -413,7 +413,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.5', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.6', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -447,7 +447,7 @@ if(typeof module!=='undefined') module.exports=FP;
       if(e.type==='weight'){ o.grams=sfin(e.grams,1,20000); if(o.grams===null) return null; }
       else if(e.type==='feed'){ o.food=sstr(e.food,80); o.amount=sfin(e.amount,0,100000); }
       else if(e.type==='hunt'){ o.quarry=sstr(e.quarry,80); o.result=RES.indexOf(e.result)>=0?e.result:'No slip'; o.count=sint(e.count,1,99,1); }
-      else if(e.type==='flight'){ o.outcome=OUT.indexOf(e.outcome)>=0?e.outcome:'OK'; o.game=sint(e.game,0,99,0); var sl=sfin(e.slips,0,999); o.slips=sl===null?null:Math.round(sl); o.quarry=sstr(e.quarry,80);
+      else if(e.type==='flight'){ o.outcome=OUT.indexOf(e.outcome)>=0?e.outcome:'OK'; o.game=sint(e.game,0,99,0); var sl=sfin(e.slips,0,999); o.slips=sl===null?null:Math.round(sl); var fc=sfin(e.flights,1,99); o.flights=fc===null?null:Math.round(fc); var mn=sfin(e.mins,1,600); o.mins=mn===null?null:Math.round(mn); o.quarry=sstr(e.quarry,80);
         ['temp','wind','gust','pop','precip'].forEach(function(k){ var v=sfin(e[k],-100,250); o[k]=v===null?0:v; }); o.weightG=sfin(e.weightG,1,20000); }
       else if(e.type!=='note') return null;
       return o;
@@ -580,7 +580,7 @@ if(typeof module!=='undefined') module.exports=FP;
   }
   function entryTitle(e){
     return e.type==='weight'?'Weight '+FP.fmtWeight(e.grams,S.unit):e.type==='feed'?'Fed '+e.food+(e.amount?', '+e.amount+' g':''):e.type==='hunt'?'Hunt: '+e.result+', '+e.quarry+(e.count>1?' x'+e.count:''):
-      e.type==='flight'?'Flight: '+e.outcome+', '+(e.game||0)+' game'+(e.quarry?' ('+e.quarry+')':'')+(e.slips!=null?', '+e.slips+' slips':'')+(e.weightG?', weight '+FP.fmtWeight(e.weightG,S.unit):''):'Note';
+      e.type==='flight'?'Flight: '+e.outcome+', '+(e.game||0)+' game'+(e.quarry?' ('+e.quarry+')':'')+(e.slips!=null?', '+e.slips+' slips':'')+(e.flights?', '+e.flights+' flights':'')+(e.mins?', '+e.mins+' min out':'')+(e.weightG?', weight '+FP.fmtWeight(e.weightG,S.unit):''):'Note';
   }
   function neglectBanner(){
     var n=neglected(); if(!n.length) return null;
@@ -726,7 +726,7 @@ if(typeof module!=='undefined') module.exports=FP;
     var P=(pfx||'f')+'-', dupOk=false;
     var when=h('input',{id:P+'when',type:'datetime-local',value:nowInput()}),
       outcome=h('select',{id:P+'out'},['Good','OK','Poor'].map(function(x){return h('option',{value:x},x);})),
-      game=h('input',{id:P+'game',type:'number',min:'0',step:'1',value:'0',inputmode:'numeric'}), wt=h('input',{id:P+'weight',type:'number',step:'any',inputmode:'decimal',placeholder:(function(){ var w=FP.weightStats(S.log.filter(function(e){return e.birdId===b.id;})); return w?'Last '+FP.fmtWeight(w.last,S.unit):'Optional'; })()}), slips=h('input',{id:P+'slips',type:'number',min:'0',step:'1',inputmode:'numeric',placeholder:'Optional'}),
+      game=h('input',{id:P+'game',type:'number',min:'0',step:'1',value:'0',inputmode:'numeric'}), wt=h('input',{id:P+'weight',type:'number',step:'any',inputmode:'decimal',placeholder:(function(){ var w=FP.weightStats(S.log.filter(function(e){return e.birdId===b.id;})); return w?'Last '+FP.fmtWeight(w.last,S.unit):'Optional'; })()}), slips=h('input',{id:P+'slips',type:'number',min:'0',step:'1',inputmode:'numeric',placeholder:'Optional'}), nfl=h('input',{id:P+'nfl',type:'number',min:'1',step:'1',inputmode:'numeric',placeholder:'1'}), mins=h('input',{id:P+'mins',type:'number',min:'1',step:'1',inputmode:'numeric',placeholder:'Optional'}),
       quarry=h('input',{id:P+'quarry',placeholder:'Example: gray squirrel'}),
       t=h('input',{id:P+'temp',type:'number',step:'any'}), w=h('input',{id:P+'wind',type:'number',step:'any'}), g=h('input',{id:P+'gust',type:'number',step:'any'}), p=h('input',{id:P+'pop',type:'number',step:'any'}),
       txt=h('input',{id:P+'note',placeholder:'Optional: where, how it flew'}), wxnote=h('p',{class:'note',style:'margin:6px 0 0',id:P+'wxnote'}), err=h('p',{class:'note',role:'alert',id:P+'err'});
@@ -745,11 +745,14 @@ if(typeof module!=='undefined') module.exports=FP;
     when.addEventListener('change',fill); fill(); flightFills[P]=fill;
     return h('details',{class:'card',id:(pfx?pfx+'-card':'flightcard')},h('summary',null,'Log flight'),
       h('p',{class:'note'},'Saving to ',dot(b),h('b',null,' '+b.name),'. Everything you log goes into one timeline for this bird. A flight with game taken is your hunt, so log it once here. After five good flights, the Log tab suggests limits based on what you actually flew in. Nothing changes unless you accept it.'),
-      h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:P+'when'},'When'),when),h('div',{class:'field'},h('label',{for:P+'out'},'How it went'),outcome)),
+      h('div',{class:'row'},h('div',{class:'field',style:'flex:2 1 200px'},h('label',{for:P+'when'},'When'),when),h('div',{class:'field'},h('label',{for:P+'out'},'How the bird flew (your call)'),outcome)),
       h('div',{class:'row',style:'margin-top:10px'},h('div',{class:'field',style:'flex:1 1 200px'},h('label',{for:P+'weight'},'Weight'),h('div',{class:'row',style:'flex-wrap:nowrap;gap:6px'},wt,wu),wh),h('p',{class:'note',style:'flex:2 1 200px;margin:auto 0 0'},'Saved to '+b.name+'\'s weight log too, so you only enter it once. Leave blank to skip.')),
       h('div',{class:'row',style:'margin-top:10px'},
         h('div',{class:'field',style:'flex:0 1 110px'},h('label',{for:P+'game'},'Game taken'),game),h('div',{class:'field',style:'flex:0 1 130px'},h('label',{for:P+'slips'},'Slips (chases)'),slips),
         h('div',{class:'field',style:'flex:2 1 160px'},h('label',{for:P+'quarry'},'Quarry'),quarry)),
+      h('div',{class:'row',style:'margin-top:10px'},
+        h('div',{class:'field',style:'flex:0 1 140px'},h('label',{for:P+'nfl'},'Flights this outing'),nfl),h('div',{class:'field',style:'flex:0 1 140px'},h('label',{for:P+'mins'},'Minutes out'),mins),
+        h('p',{class:'note',style:'flex:2 1 200px;margin:auto 0 0'},'Success here means facts you can count: game taken, flights, time out. "How the bird flew" is only your own call and feeds the limit suggestions.')),
       h('div',{class:'row',style:'margin-top:10px'},
         h('div',{class:'field'},h('label',{for:P+'temp'},'Temp (F)'),t),h('div',{class:'field'},h('label',{for:P+'wind'},'Wind (mph)'),w),
         h('div',{class:'field'},h('label',{for:P+'gust'},'Gusts (mph)'),g),h('div',{class:'field'},h('label',{for:P+'pop'},'Rain chance (%)'),p)),
@@ -761,14 +764,15 @@ if(typeof module!=='undefined') module.exports=FP;
           var gm=Math.max(0,parseInt(game.value,10)||0), sl=slips.value===''?null:Math.max(0,parseInt(slips.value,10)||0);
           if(sl!==null&&sl<gm){ err.textContent='Slips can\'t be fewer than game taken. Leave slips empty if you don\'t know.'; return; }
           var wv=wt.value===''?null:num(wt.value,NaN); if(wv!==null&&(isNaN(wv)||wv<=0)){ err.textContent='Weight must be a number above zero, or leave it blank.'; return; }
+          var nfv=nfl.value===''?null:Math.max(1,Math.min(99,parseInt(nfl.value,10)||1)), mnv=mins.value===''?null:Math.max(1,Math.min(600,parseInt(mins.value,10)||1));
           var tsx=when.value||nowInput();
           if(!dupOk){ var near=S.log.filter(function(x){return x.birdId===b.id&&x.type==='flight'&&Math.abs(new Date(x.ts)-new Date(tsx))<3600000;}); if(near.length){ err.textContent='You already logged a flight for '+b.name+' within an hour of this time ('+near[0].ts.replace('T',' ')+'). If this is a different flight, press Save flight again.'; dupOk=true; return; } }
           dupOk=false;
           var ts=tsx, wg=wv===null?null:FP.toGrams(wv,wu.value), uid=Date.now()+''+Math.random().toString(36).slice(2,6);
-          S.log.push({id:uid,birdId:b.id,type:'flight',ts:ts,outcome:outcome.value,game:gm,slips:sl,quarry:quarry.value.trim(),
+          S.log.push({id:uid,birdId:b.id,type:'flight',ts:ts,outcome:outcome.value,game:gm,slips:sl,flights:nfv,mins:mnv,quarry:quarry.value.trim(),
             temp:vals[0],wind:vals[1],gust:vals[2],pop:vals[3],precip:0,text:txt.value.trim(),weightG:wg});
           if(wg!==null) S.log.push({id:uid+'w',birdId:b.id,type:'weight',ts:ts,grams:wg,text:'From flight log'});
-          save(); var msg='Saved to '+b.name+'\'s log: flight'+(wg!==null?' and weight':'')+'. It is in the one timeline on the Log tab.'; err.textContent=msg; game.value='0'; slips.value=''; wt.value=''; whint(); if(onSaved) onSaved(msg); }},'Save flight')),err);
+          save(); var msg='Saved to '+b.name+'\'s log: flight'+(wg!==null?' and weight':'')+'. It is in the one timeline on the Log tab.'; err.textContent=msg; game.value='0'; slips.value=''; nfl.value=''; mins.value=''; wt.value=''; whint(); if(onSaved) onSaved(msg); }},'Save flight')),err);
   }
   function manualCard(b){
     var f={temp:h('input',{id:'m-temp',type:'number',value:'45'}),wind:h('input',{id:'m-wind',type:'number',value:'8'}),gust:h('input',{id:'m-gust',type:'number',value:'14'}),pop:h('input',{id:'m-pop',type:'number',value:'10'})};
@@ -942,13 +946,14 @@ if(typeof module!=='undefined') module.exports=FP;
       return h('div',{class:'stats'},
         h('div',{class:'stat'},h('b',null,String(o.taken)),h('span',null,'Game taken')),
         h('div',{class:'stat'},h('b',null,String(o.outings)),h('span',null,'Outings logged')),
-        h('div',{class:'stat'},h('b',null,o.rate==null?'Add slips':pct(o.rate)),h('span',null,o.rate==null?'Catch rate needs slips':'Catch rate: '+o.takenWithSlips+' taken from '+o.slips+' slips')),
-        h('div',{class:'stat'},h('b',null,pct(o.outingRate)),h('span',null,'Outings with game ('+o.withGame+' of '+o.outings+')')));
+        h('div',{class:'stat'},h('b',null,String(o.flights)),h('span',null,'Flights flown')),
+        h('div',{class:'stat'},h('b',null,pct(o.outingRate)),h('span',null,'Outings with game ('+o.withGame+' of '+o.outings+')')),
+        h('div',{class:'stat'},h('b',null,o.avgMins==null?'Add minutes':o.avgMins+' min'),h('span',null,o.avgMins==null?'Average time out needs minutes':'Average time out')));
     }
     return h('div',{class:'card'},h('h2',null,'Success, '+b.name),
       h('h3',null,'This season (since '+fs.seasonStart+')'),tiles(s),
       h('details',null,h('summary',null,'All time'),tiles(a)),
-      h('p',{class:'note',style:'margin-bottom:0'},'Catch rate is game taken divided by slips, using only flights where you entered slips. Seasons start September 1.'));
+      h('p',{class:'note',style:'margin-bottom:0'},'Every number here is a count of what you logged, nothing is scored. Flights flown counts each outing as one unless you enter more. Seasons start September 1.'));
   }
   function flightInsights(b,mine){
     var fl=mine.filter(function(e){return e.type==='flight';}), s=FP.suggestLimits(fl), cur=eff(b);
