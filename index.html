@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex,nofollow">
-<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-qWskJykiNl0plAQtt2X0VpomcD6Lmllp7baZjGUO35U=' 'sha256-Mqu1gv8DzpwxSxXOg9dU44YE3IyiqBDm405abeZClOc='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
+<!--CSP--><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-hnGyHhdzHZOJS4Ii7uCn2t/1pj0ifCu4q89ACvEnuFs=' 'sha256-vHGvr7EFJ4Xg9RuViA58QNdzLKFiyoTu7F5yURxq3cU='; style-src 'unsafe-inline'; connect-src https://api.open-meteo.com https://api.web3forms.com; img-src data:; form-action 'none'; base-uri 'none'">
 <title>Stoop (beta)</title>
 <style>
 /* Layout idea: a field notebook after dusk. Warm near-black, leather-tan accent,
@@ -182,7 +182,7 @@ var FP = (function(){
     add(rate(h.pop,p.maxPop,10,'max'),'rain chance '+Math.round(h.pop)+'%, maximum '+p.maxPop+'%');
     if(h.precip>=0.03) add(2,'rain falling, '+h.precip.toFixed(2)+' in/hr');
     else if(h.precip>=0.01) add(1,'light rain, '+h.precip.toFixed(2)+' in/hr');
-    var keys=['GO','CAUTION','NOGO'], labels=['Go','Caution','No-go'];
+    var keys=['GO','CAUTION','NOGO'], labels=['Clear','Caution','Hold off'];
     return {level:worst,key:keys[worst],label:labels[worst],reasons:reasons};
   }
   function hourLabel(t){ var H=+t.slice(11,13); return (H%12||12)+(H<12?'a':'p'); }
@@ -273,9 +273,9 @@ var FP = (function(){
       r.maxWind=Math.round(Math.max.apply(null,winds)); r.maxGust=Math.round(Math.max.apply(null,gusts)); r.maxPop=Math.round(Math.max.apply(null,pops));
       if(!dayHrs.length){ r.key='DARK'; r.label='No daylight left'; r.win=null; days.push(r); return; }
       var sc=dayHrs.map(function(x){return {x:x,s:scoreHour(x,p)};}), w=pickWindow(sc), n=w?(w.end-w.start+1):0;
-      if(w&&w.strict&&n>=2){ r.key='GO'; r.label='Go'; }
+      if(w&&w.strict&&n>=2){ r.key='GO'; r.label='Clear'; }
       else if(w&&(w.strict||n>=2)){ r.key='CAUTION'; r.label='Caution'; }
-      else { r.key='NOGO'; r.label='No-go'; }
+      else { r.key='NOGO'; r.label='Hold off'; }
       r.win=w?{from:hourLabel(sc[w.start].x.time),to:endLabel(sc[w.end].x.time),hours:n,strict:w.strict}:null;
       days.push(r);
     });
@@ -416,7 +416,7 @@ if(typeof module!=='undefined') module.exports=FP;
     return {loc:{name:'Newton, NC area (default, change it)',lat:35.66,lon:-81.22},birdId:DEMO?'d1':null,birds:DEMO?demoBirds():[],entries:[],log:[],unit:'g',theme:'dark',tab:'today',neglectDays:3};
   }
   /* ---------- trust boundary: everything read from storage, a backup file or pasted text is rebuilt from known fields ---------- */
-  var APP_VERSION='v0.4.0-beta.8', BETA_VERSION=3, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
+  var APP_VERSION='v0.4.0-beta.9', BETA_VERSION=4, FEEDBACK_ENDPOINT='https://api.web3forms.com/submit', FEEDBACK_KEY='0798a7ef-29dc-46e8-a816-1fe4bcf26940' /* public access key from web3forms.com; empty keeps sending switched off */;
   var LIMITS_MAX={entries:1000,birds:50,log:30000};
   function safeId(v){ return (typeof v==='string'&&/^[A-Za-z0-9_.-]{1,60}$/.test(v))?v:null; }
   function sstr(v,max){ return typeof v==='string'?v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'').slice(0,max):''; }
@@ -709,7 +709,7 @@ if(typeof module!=='undefined') module.exports=FP;
         h('h3',{style:'margin-top:10px'},'Why this window'),
         h('ul',{class:'why'},FP.explainWindow(scored,w,p).map(function(l){return h('li',null,l);})));
     } else {
-      hero.append(h('p',{class:'big NOGO'},'No flyable window'),h('p',{class:'note'},'Nothing in the next 24 hours clears the limits for '+b.name+'. Tap an hour to see why.'));
+      hero.append(h('p',{class:'big NOGO'},'No clear window'),h('p',{class:'note'},'Nothing in the next 24 hours clears the limits for '+b.name+'. Tap an hour to see why.'));
     }
     var grid=h('div',{class:'grid'});
     scored.forEach(function(r,i){
@@ -720,8 +720,9 @@ if(typeof module!=='undefined') module.exports=FP;
       h('p',{style:'margin:0'},h('b',null,FP.hourLabel(cur.x.time)+': '+cur.s.label)),
       h('p',{class:'note',style:'margin:2px 0 0'},Math.round(cur.x.temp)+'F (feels '+Math.round(cur.x.feels)+'F), wind '+Math.round(cur.x.wind)+' mph, gusts '+Math.round(cur.x.gust)+' mph, rain chance '+Math.round(cur.x.pop)+'%'),
       cur.s.reasons.length?h('ul',{class:'reasons'},cur.s.reasons.map(function(r){return h('li',null,r);})):h('p',{class:'note'},'Everything is inside the limits.'));
-    var legend=h('div',{class:'legend'},h('span',null,'Go: inside limits'),h('span',null,'Caution: close to a limit'),h('span',null,'No-go: over a limit'),h('span',null,'Dark: after sunset'));
-    return h('div',null,hero,h('div',{class:'card'},h('h2',null,'Next 24 hours, '+b.name),grid,legend,h('div',{style:'margin-top:10px'},det)));
+    var legend=h('div',{class:'legend'},h('span',null,'Clear: inside limits'),h('span',null,'Caution: close to a limit'),h('span',null,'Hold off: over a limit'),h('span',null,'Dark: after sunset'));
+    var help=h('p',{class:'note',style:'margin:10px 0 0',id:'ratings-help'},'Ratings are a starting point built from forecast data and rough starter limits. They get better as falconers tell us what is right and wrong. ',h('button',{class:'btn ghost small',id:'ratings-tell',type:'button',onclick:function(){ openFeedback('Something about the ratings for my bird: '); }},'Tell us what to change'));
+    return h('div',null,hero,h('div',{class:'card'},h('h2',null,'Next 24 hours, '+b.name),grid,legend,h('div',{style:'margin-top:10px'},det),help));
   }
 
   /* Log flight: weather fills in from forecast data, any field can be overridden. */
@@ -1215,7 +1216,7 @@ if(typeof module!=='undefined') module.exports=FP;
       h('div',{class:'row',style:'margin-top:10px'},h('button',{class:'btn ghost small',id:'b-reset',type:'button',onclick:function(){ b.limits={}; save(); renderBirds(); }},'Reset to species values'))));
     function ref(href,label){ return h('a',{href:href,target:'_blank',rel:'noopener noreferrer'},label); }
     root.append(h('details',{class:'card',id:'limit-sources'},h('summary',null,'Where do the starter limits come from?'),
-      h('p',{class:'note'},'Honest answer: no published source gives safe go or no-go flying weather for each species, so none of these numbers is cited. They are cautious rules of thumb we chose for the beta, and they are the first thing to override. Your sponsor, your bird\'s history and your own judgment beat them.'),
+      h('p',{class:'note'},'Honest answer: no published source gives safe flying weather for each species, so none of these numbers is cited. They are cautious rules of thumb we chose for the beta, and they are the first thing to override. Your sponsor, your bird\'s history and your own judgment beat them.'),
       h('p',{class:'note'},'Real research exists on how raptors handle weather, but it measures resting metabolism and body temperature, not safe flying conditions, so it cannot give limits. Starting points if you want to read it:'),
       h('ul',{class:'reasons'},
         h('li',null,ref('https://sora.unm.edu/sites/default/files/journals/condor/v088n01/p0057-p0062.pdf','Energetics and temperature regulation in falconiform birds (The Condor, 1986)')),
@@ -1243,9 +1244,10 @@ if(typeof module!=='undefined') module.exports=FP;
   document.addEventListener('keydown',function(ev){ if(ev.key==='Escape'&&document.getElementById('panel')) closePanel(); });
   function betaPoints(){
     return ['This is an unfinished beta. It can be wrong, change without notice, or lose your data. Download a backup file often (Calendar tab).',
-      'Not advice. Go/no-go ratings, starter limits, outlooks and charts are rough guides built from forecast data and guesses. They are not husbandry, veterinary, legal or regulatory advice. You are responsible for your bird, your permits and following the law. Check season dates and rules with the official source.',
+      'Not advice. Weather ratings, starter limits, outlooks and charts are rough guides built from forecast data and guesses. They are not husbandry, veterinary, legal or regulatory advice. You are responsible for your bird, your permits and following the law. Check season dates and rules with the official source.',
       'Forecasts come from Open-Meteo and can be wrong. To get one, the coordinates of your location are sent to Open-Meteo. Nothing else leaves your device unless you press Send in the feedback form or switch on anonymous usage sharing (off unless you choose it). Feedback is delivered to the maker by email through a form service, Web3Forms.',
       'Your birds, logs and notes are saved only in this browser, on this device, for this web address. Switching browsers, devices or addresses, a private window, adding Stoop to your Home Screen, or clearing browser data starts you empty, and there is no way for us to get it back. Download a backup file often and before any of those. There are no accounts. Do not enter permit numbers, home addresses or other people\'s personal details.',
+      'Stoop is being built together with the people who use it. Starter limits are rough guesses and season dates are hand-checked for only a few states. Your flight logs stay on your device, so the best way to help is the Feedback button: tell us what the ratings and dates got right or wrong for your bird and your state. The more we hear, the better it gets.',
       'Reports and exports are self-reported logbooks, not certified or verified records.',
       'Provided as is, with no warranties. To the fullest extent the law allows, the maker is not liable for losses from using it. Use is free during the beta.',
       'Stoop, its design, text and code are copyrighted, all rights reserved. Please do not copy or redistribute them.'];
